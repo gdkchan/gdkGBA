@@ -404,7 +404,13 @@ typedef struct {
 #define ARM_ARITH_REVERSE  1
 
 static void arm_arith_set(arm_data_t op, uint64_t res, bool add) {
-	if (op.s) {
+	if (op.rd == 15) {
+		if (op.s) arm_spsr_to_cpsr();
+
+		arm_r15_align();
+		arm_load_pipe();
+		arm_check_irq();
+	} else if (op.s) {
 		arm_setn(res);
 		arm_setz(res);
 
@@ -415,14 +421,6 @@ static void arm_arith_set(arm_data_t op, uint64_t res, bool add) {
 			arm_subc(res);
 			arm_subv(op.lhs, op.rhs, res);
 		}
-	}
-
-	if (op.rd == 15) {
-		if (op.s) arm_spsr_to_cpsr();
-
-		arm_r15_align();
-		arm_load_pipe();
-		arm_check_irq();
 	}
 }
 
@@ -487,19 +485,17 @@ typedef enum {
 } arm_logic_e;
 
 static void arm_logic_set(arm_data_t op, uint32_t res) {
-	if (op.s) {
-		arm_setn(res);
-		arm_setz(res);
-
-		arm_flag_set(ARM_C, op.cout);
-	}
-
 	if (op.rd == 15) {
 		if (op.s) arm_spsr_to_cpsr();
 
 		arm_r15_align();
 		arm_load_pipe();
 		arm_check_irq();
+	} else if (op.s) {
+		arm_setn(res);
+		arm_setz(res);
+
+		arm_flag_set(ARM_C, op.cout);
 	}
 }
 
@@ -908,7 +904,7 @@ static arm_data_t t16_data_imm8sp_op() {
 static arm_data_t t16_data_imm8pc_op() {
 	arm_data_t op = t16_data_imm8_op();
 
-	op.lhs = arm_r.r[15];
+	op.lhs = arm_r.r[15] & ~3;
 	op.rhs <<= 2;
 	op.s = false;
 
@@ -3115,7 +3111,7 @@ void arm_uninit() {
 
 #define ARM_COND_UNCOND  0b1111
 
-void arm_exec(uint32_t target_cycles) {	
+void arm_exec(uint32_t target_cycles) {
 	while (arm_cycles < target_cycles) {
 		uint32_t cycles = arm_cycles;
 		
