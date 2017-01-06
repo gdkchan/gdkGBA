@@ -173,7 +173,8 @@ void io_write(uint32_t address, uint8_t value) {
 		case 0x04000001: disp_cnt.b.b1        =  value; break;
 		case 0x04000004:
 			disp_stat.b.b0 &=          0x47;
-			disp_stat.b.b0 |= value & ~0x47;            break;
+			disp_stat.b.b0 |= value & ~0x47;
+		break;
 		case 0x04000005: disp_stat.b.b1       =  value; break;
 
 		case 0x04000008: bg[0].ctrl.b.b0      =  value; break;

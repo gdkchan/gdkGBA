@@ -3115,8 +3115,8 @@ void arm_uninit() {
 
 #define ARM_COND_UNCOND  0b1111
 
-void arm_exec(uint32_t target_cycles) {
-	while (arm_cycles < target_cycles && !int_halt) {
+void arm_exec(uint32_t target_cycles) {	
+	while (arm_cycles < target_cycles) {
 		uint32_t cycles = arm_cycles;
 		
 		arm_op = arm_pipe[0];
@@ -3143,11 +3143,13 @@ void arm_exec(uint32_t target_cycles) {
 		}
 
 		if (tmr_enb) tick_timers(arm_cycles - cycles);
+		
+		if (int_halt) arm_cycles = target_cycles;
 
 		pipe_reload = false;
 	}
 
-	if (!int_halt) arm_cycles -= target_cycles;
+	arm_cycles -= target_cycles;
 }
 
 void arm_int(uint32_t address, int8_t mode) {
