@@ -277,6 +277,8 @@ static void render_bg() {
 
 				*(uint32_t *)(screen + surf_addr) = rgba;
 
+				surf_addr += 4;
+
 				frm_addr += 2;
 			}
 		}
