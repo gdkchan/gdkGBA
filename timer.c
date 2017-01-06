@@ -5,19 +5,13 @@
 
 static const uint8_t pscale_shift_lut[4]  = { 0, 6, 8, 10 };
 
-void tick_timers() {
+void tick_timers(uint32_t cycles) {
 	uint8_t idx;
-
 	bool overflow = false;
-
-	uint32_t cycles = arm_cycles - tmr_base_cycles;
-
-	if (!cycles) return;
 
 	for (idx = 0; idx < 4; idx++) {
 		if (!(tmr[idx].ctrl.w & TMR_ENB)) {
 			overflow = false;
-
 			continue;
 		}
 
@@ -39,6 +33,4 @@ void tick_timers() {
 			trigger_irq(TMR0_FLAG << idx);
 		}
 	}
-
-	tmr_base_cycles = arm_cycles;
 }

@@ -75,51 +75,23 @@ uint8_t io_read(uint32_t address) {
 		case 0x040000de: return dma_ch[3].ctrl.b.b0;
 		case 0x040000df: return dma_ch[3].ctrl.b.b1;
 
-		case 0x04000100:
-			tick_timers();
-
-			return tmr[0].count.b.b0;
-		case 0x04000101:
-			tick_timers();
-
-			return tmr[0].count.b.b1;
-
+		case 0x04000100: return tmr[0].count.b.b0;
+		case 0x04000101: return tmr[0].count.b.b1;
 		case 0x04000102: return tmr[0].ctrl.b.b0;
 		case 0x04000103: return tmr[0].ctrl.b.b1;
 
-		case 0x04000104:
-			tick_timers();
-
-			return tmr[1].count.b.b0;
-		case 0x04000105:
-			tick_timers();
-
-			return tmr[1].count.b.b1;
-
+		case 0x04000104: return tmr[1].count.b.b0;
+		case 0x04000105: return tmr[1].count.b.b1;
 		case 0x04000106: return tmr[1].ctrl.b.b0;
 		case 0x04000107: return tmr[1].ctrl.b.b1;
 
-		case 0x04000108:
-			tick_timers();
-
-			return tmr[2].count.b.b0;
-		case 0x04000109:
-			tick_timers();
-
-			return tmr[2].count.b.b1;
-
+		case 0x04000108: return tmr[2].count.b.b0;
+		case 0x04000109: return tmr[2].count.b.b1;
 		case 0x0400010a: return tmr[2].ctrl.b.b0;
 		case 0x0400010b: return tmr[2].ctrl.b.b1;
 
-		case 0x0400010c:
-			tick_timers();
-
-			return tmr[3].count.b.b0;
-		case 0x0400010d:
-			tick_timers();
-
-			return tmr[3].count.b.b1;
-
+		case 0x0400010c: return tmr[3].count.b.b0;
+		case 0x0400010d: return tmr[3].count.b.b1;
 		case 0x0400010e: return tmr[3].ctrl.b.b0;
 		case 0x0400010f: return tmr[3].ctrl.b.b1;
 
@@ -183,19 +155,12 @@ static void tmr_load(uint8_t idx, uint8_t value) {
 
 	tmr[idx].ctrl.b.b0 = value;
 
-	if (value & TMR_IRQ)
-		tmr_irq |=  (1 << idx);
-	else
-		tmr_irq &= ~(1 << idx);
-
 	if (value & TMR_ENB)
 		tmr_enb |=  (1 << idx);
 	else
 		tmr_enb &= ~(1 << idx);
 
-	tmr_ie = tmr_irq & tmr_enb;
-
-	if ((old ^ value) & value & 0x80) {
+	if ((old ^ value) & value & TMR_ENB) {
 		tmr[idx].count.w = tmr[idx].reload.w;
 
 		tmr_icnt[idx] = 0;
@@ -451,10 +416,10 @@ void update_ws() {
 	int8_t i;
 
 	for (i = 0; i < 3; i++) {
-		ws_n_arm[i] = ws_n[i] + 1;
-		ws_s_arm[i] = ws_s[i] + 1;
+		ws_n_t16[i] = ws_n[i] + 1;
+		ws_s_t16[i] = ws_s[i] + 1;
 
-		ws_n_t16[i] = ws_n_arm[i] + ws_s_arm[i];
-		ws_s_t16[i] = ws_s_arm[i] << 1;
+		ws_n_arm[i] = ws_n_t16[i] + ws_s_t16[i];
+		ws_s_arm[i] = ws_s_t16[i] << 1;
 	}
 }

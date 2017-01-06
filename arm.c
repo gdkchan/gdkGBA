@@ -253,27 +253,27 @@ static uint16_t arm_fetchh(access_type_e at) {
 		case 0x8:
 		case 0x9:
 			if (at == NON_SEQ)
-				arm_cycles += ws_n_arm[0];
+				arm_cycles += ws_n_t16[0];
 			else
-				arm_cycles += ws_s_arm[0];
+				arm_cycles += ws_s_t16[0];
 
 			return *(uint16_t *)(rom + (arm_r.r[15] & 0x1ffffff));
 
 		case 0xa:
 		case 0xb:
 			if (at == NON_SEQ)
-				arm_cycles += ws_n_arm[1];
+				arm_cycles += ws_n_t16[1];
 			else
-				arm_cycles += ws_s_arm[1];
+				arm_cycles += ws_s_t16[1];
 
 			return *(uint16_t *)(rom + (arm_r.r[15] & 0x1ffffff));
 
 		case 0xc:
 		case 0xd:
 			if (at == NON_SEQ)
-				arm_cycles += ws_n_arm[2];
+				arm_cycles += ws_n_t16[2];
 			else
-				arm_cycles += ws_s_arm[2];
+				arm_cycles += ws_s_t16[2];
 
 			return *(uint16_t *)(rom + (arm_r.r[15] & 0x1ffffff));
 
@@ -288,7 +288,7 @@ static uint16_t arm_fetchh(access_type_e at) {
 static uint32_t arm_fetch(access_type_e at) {
 	switch (arm_r.r[15] >> 24) {
 		case 0x0: arm_cycles += 1; return *(uint32_t *)(bios  + (arm_r.r[15] & 0x3fff));
-		case 0x2: arm_cycles += 3; return *(uint32_t *)(wram  + (arm_r.r[15] & 0x3ffff));
+		case 0x2: arm_cycles += 6; return *(uint32_t *)(wram  + (arm_r.r[15] & 0x3ffff));
 		case 0x3: arm_cycles += 1; return *(uint32_t *)(iwram + (arm_r.r[15] & 0x7fff));
 		case 0x5: arm_cycles += 1; return *(uint32_t *)(pram  + (arm_r.r[15] & 0x3ff));
 		case 0x7: arm_cycles += 1; return *(uint32_t *)(oam   + (arm_r.r[15] & 0x3ff));
@@ -3116,11 +3116,9 @@ void arm_uninit() {
 #define ARM_COND_UNCOND  0b1111
 
 void arm_exec(uint32_t target_cycles) {
-	tmr_base_cycles = arm_cycles;
-
-	while (arm_cycles < target_cycles) {
-		if (int_halt) arm_cycles = target_cycles;
-
+	while (arm_cycles < target_cycles && !int_halt) {
+		uint32_t cycles = arm_cycles;
+		
 		arm_op = arm_pipe[0];
 
 		if (arm_in_thumb()) {
@@ -3144,14 +3142,12 @@ void arm_exec(uint32_t target_cycles) {
 			arm_pipe[1] = arm_fetch_s();
 		}
 
-		pipe_reload = false;
+		if (tmr_enb) tick_timers(arm_cycles - cycles);
 
-		if (tmr_ie) tick_timers();
+		pipe_reload = false;
 	}
 
-	if (tmr_enb) tick_timers();
-
-	arm_cycles -= target_cycles;
+	if (!int_halt) arm_cycles -= target_cycles;
 }
 
 void arm_int(uint32_t address, int8_t mode) {

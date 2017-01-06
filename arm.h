@@ -105,6 +105,7 @@ arm_regs_t arm_r;
 uint32_t arm_op;
 uint32_t arm_pipe[2];
 uint32_t arm_cycles;
+uint32_t arm_cycles_tmr;
 bool     int_halt;
 
 bool pipe_reload;
