@@ -36,7 +36,8 @@ static void arm_bank_to_regs(int8_t mode) {
 		case ARM_SYS:
 			arm_r.r[13] = arm_r.r13_usr;
 			arm_r.r[14] = arm_r.r14_usr;
-			break;
+		break;
+
 		case ARM_FIQ:
 			arm_r.r[8]  = arm_r.r8_fiq;
 			arm_r.r[9]  = arm_r.r9_fiq;
@@ -45,27 +46,32 @@ static void arm_bank_to_regs(int8_t mode) {
 			arm_r.r[12] = arm_r.r12_fiq;
 			arm_r.r[13] = arm_r.r13_fiq;
 			arm_r.r[14] = arm_r.r14_fiq;
-			break;
+		break;
+
 		case ARM_IRQ: 
 			arm_r.r[13] = arm_r.r13_irq;
 			arm_r.r[14] = arm_r.r14_irq;
-			break;
+		break;
+
 		case ARM_SVC:
 			arm_r.r[13] = arm_r.r13_svc;
 			arm_r.r[14] = arm_r.r14_svc;
-			break;
+		break;
+
 		case ARM_MON:
 			arm_r.r[13] = arm_r.r13_mon;
 			arm_r.r[14] = arm_r.r14_mon;
-			break;
+		break;
+
 		case ARM_ABT:
 			arm_r.r[13] = arm_r.r13_abt;
 			arm_r.r[14] = arm_r.r14_abt;
-			break;
+		break;
+
 		case ARM_UND:
 			arm_r.r[13] = arm_r.r13_und;
 			arm_r.r[14] = arm_r.r14_und;
-			break;
+		break;
 	}
 }
 
@@ -83,7 +89,8 @@ static void arm_regs_to_bank(int8_t mode) {
 		case ARM_SYS:
 			arm_r.r13_usr = arm_r.r[13];
 			arm_r.r14_usr = arm_r.r[14];
-			break;
+		break;
+
 		case ARM_FIQ:
 			arm_r.r8_fiq  = arm_r.r[8];
 			arm_r.r9_fiq  = arm_r.r[9];
@@ -92,27 +99,32 @@ static void arm_regs_to_bank(int8_t mode) {
 			arm_r.r12_fiq = arm_r.r[12];
 			arm_r.r13_fiq = arm_r.r[13];
 			arm_r.r14_fiq = arm_r.r[14];
-			break;
+		break;
+
 		case ARM_IRQ: 
 			arm_r.r13_irq = arm_r.r[13];
 			arm_r.r14_irq = arm_r.r[14];
-			break;
+		break;
+
 		case ARM_SVC:
 			arm_r.r13_svc = arm_r.r[13];
 			arm_r.r14_svc = arm_r.r[14];
-			break;
+		break;
+
 		case ARM_MON:
 			arm_r.r13_mon = arm_r.r[13];
 			arm_r.r14_mon = arm_r.r[14];
-			break;
+		break;
+
 		case ARM_ABT:
 			arm_r.r13_abt = arm_r.r[13];
 			arm_r.r14_abt = arm_r.r[14];
-			break;
+		break;
+
 		case ARM_UND:
 			arm_r.r13_und = arm_r.r[13];
 			arm_r.r14_und = arm_r.r[14];
-			break;
+		break;
 	}
 }
 
@@ -1302,62 +1314,62 @@ typedef enum {
 	DWORD = 8
 } arm_size_e;
 
-#define ARM_MEMIO_STORE  0
-#define ARM_MEMIO_LOAD   1
-
-static void arm_memio_mult(arm_memio_t op, bool load) {
+static void arm_memio_ldm(arm_memio_t op) {
 	uint8_t i;
+
+	arm_r.r[op.rn] += op.disp;
 
 	for (i = 0; i < 16; i++) {
 		if (op.regs & (1 << i)) {
-			if (load)
-				arm_r.r[i] = arm_read_s(op.addr);
-			else
-				arm_write_s(op.addr, arm_r.r[i]);
+			arm_r.r[i] = arm_read_s(op.addr);
 
 			op.addr += 4;
 		}
 	}
 
-	if (load && op.regs & (1 << 15)) {
+	if (op.regs & 0x8000) {
 		arm_r15_align();
 		arm_load_pipe();
 	}
-
-	arm_r.r[op.rn] += op.disp;
-}
-
-static void arm_memio_ldm(arm_memio_t op) {
-	arm_memio_mult(op, ARM_MEMIO_LOAD);
 
 	arm_cycles++;
 }
 
 static void arm_memio_ldm_usr(arm_memio_t op) {
-	bool pc = (arm_op >> 15) & 1;
-	bool w  = (arm_op >> 21) & 1;
-
-	if (!(pc || w)) {
-		int8_t mode = arm_r.cpsr & 0x1f;
-
-		arm_mode_set(ARM_USR);
-
-		arm_memio_mult(op, ARM_MEMIO_LOAD);
-
-		arm_mode_set(mode);
-	} else {
-		arm_memio_mult(op, ARM_MEMIO_LOAD);
+	if (arm_op & 0x8000) {
+		arm_memio_ldm(op);
 
 		arm_spsr_to_cpsr();
 
 		arm_check_irq();
-	}
+	} else {
+		int8_t mode = arm_r.cpsr & 0x1f;
 
-	arm_cycles++;
+		arm_mode_set(ARM_USR);
+
+		arm_memio_ldm(op);
+
+		arm_mode_set(mode);
+	}
 }
 
 static void arm_memio_stm(arm_memio_t op) {
-	arm_memio_mult(op, ARM_MEMIO_STORE);
+	bool first = true;
+	uint8_t i;
+
+	for (i = 0; i < 16; i++) {
+		if (op.regs & (1 << i)) {
+			arm_write_s(op.addr, arm_r.r[i]);
+
+			if (first) {
+				arm_r.r[op.rn] += op.disp;
+				
+				first = false;
+			}
+
+			op.addr += 4;
+		}
+	}
 }
 
 static void arm_memio_stm_usr(arm_memio_t op) {
@@ -1365,7 +1377,7 @@ static void arm_memio_stm_usr(arm_memio_t op) {
 
 	arm_mode_set(ARM_USR);
 
-	arm_memio_mult(op, ARM_MEMIO_STORE);
+	arm_memio_stm(op);
 
 	arm_mode_set(mode);
 }
@@ -1957,7 +1969,7 @@ static void t16_b_imm8() {
 	imm <<= 24;
 	imm >>= 23;
 
-	uint8_t cond = (arm_op >> 8) & 0xf;
+	int8_t cond = (arm_op >> 8) & 0xf;
 
 	if (arm_cond(cond)) {
 		arm_access_bus(arm_r.r[15], ARM_HWORD_SZ, SEQUENTIAL);
@@ -3111,15 +3123,36 @@ void arm_uninit() {
 
 #define ARM_COND_UNCOND  0b1111
 
+static void t16_inc_r15() {
+	if (pipe_reload)
+		pipe_reload = false;
+	else
+		arm_r.r[15] += 2;
+}
+
+static void arm_inc_r15() {
+	if (pipe_reload)
+		pipe_reload = false;
+	else
+		arm_r.r[15] += 4;
+}
+
 void arm_exec(uint32_t target_cycles) {
 	while (arm_cycles < target_cycles) {
 		uint32_t cycles = arm_cycles;
-		
-		arm_op = arm_pipe[0];
+
+		arm_op      = arm_pipe[0];
+		arm_pipe[0] = arm_pipe[1];
 
 		if (arm_in_thumb()) {
+			arm_pipe[1] = arm_fetchh(SEQUENTIAL);
+
 			thumb_proc[arm_op >> 5]();
+
+			t16_inc_r15();
 		} else {
+			arm_pipe[1] = arm_fetch(SEQUENTIAL);
+
 			uint32_t proc;
 
 			proc  = (arm_op >> 16) & 0xff0;
@@ -3131,18 +3164,13 @@ void arm_exec(uint32_t target_cycles) {
 				arm_proc[1][proc]();
 			else if (arm_cond(cond))
 				arm_proc[0][proc]();
-		}
 
-		if (!pipe_reload) {
-			arm_pipe[0] = arm_pipe[1];
-			arm_pipe[1] = arm_fetch_s();
+			arm_inc_r15();
 		}
 
 		if (tmr_enb) tick_timers(arm_cycles - cycles);
-		
-		if (int_halt) arm_cycles = target_cycles;
 
-		pipe_reload = false;
+		if (int_halt) arm_cycles = target_cycles;
 	}
 
 	arm_cycles -= target_cycles;

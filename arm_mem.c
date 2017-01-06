@@ -53,74 +53,79 @@ void arm_access_bus(uint32_t address, uint8_t size, access_type_e at) {
 }
 
 //Memory read
-static void arm_read_bios(uint32_t address) {
-	if ((address | arm_r.r[15]) < 0x4000) arm_bus = bios[address & 0x3fff];
+static uint8_t arm_read_bios(uint32_t address) {
+	if ((address | arm_r.r[15]) < 0x4000)
+		return bios[address & 0x3fff];
+	else
+		return 0;
 }
 
-static void arm_read_wram(uint32_t address) {
-	arm_bus = wram[address & 0x3ffff];
+static uint8_t arm_read_wram(uint32_t address) {
+	return wram[address & 0x3ffff];
 }
 
-static void arm_read_iwram(uint32_t address) {
-	arm_bus = iwram[address & 0x7fff];
+static uint8_t arm_read_iwram(uint32_t address) {
+	return iwram[address & 0x7fff];
 }
 
-static void arm_read_pram(uint32_t address) {
-	arm_bus = pram[address & 0x3ff];
+static uint8_t arm_read_pram(uint32_t address) {
+	return pram[address & 0x3ff];
 }
 
-static void arm_read_vram(uint32_t address) {
-	arm_bus = vram[address & (address & 0x10000 ? 0x17fff : 0x1ffff)];
+static uint8_t arm_read_vram(uint32_t address) {
+	return vram[address & (address & 0x10000 ? 0x17fff : 0x1ffff)];
 }
 
-static void arm_read_oam(uint32_t address) {
-	arm_bus = oam[address & 0x3ff];
+static uint8_t arm_read_oam(uint32_t address) {
+	return oam[address & 0x3ff];
 }
 
-static void arm_read_rom(uint32_t address) {
-	arm_bus = rom[address & 0x1ffffff];
+static uint8_t arm_read_rom(uint32_t address) {
+	return rom[address & 0x1ffffff];
 }
 
-static void arm_read_flash(uint32_t address) {
+static uint8_t arm_read_flash(uint32_t address) {
 	if (flash_id_mode) {
 		//This is the Flash ROM ID, we return Sanyo ID code
 		switch (address) {
-			case 0x0e000000: arm_bus = 0x62; break;
-			case 0x0e000001: arm_bus = 0x13; break;
+			case 0x0e000000: return 0x62;
+			case 0x0e000001: return 0x13;
 		}
 	} else {
-		arm_bus = flash[flash_bank | (address & 0xffff)];
+		return flash[flash_bank | (address & 0xffff)];
 	}
+
+	return 0;
 }
 
 static uint8_t arm_read_(uint32_t address) {
 	switch (address >> 24) {
-		case 0x0: arm_read_bios(address);     break;
-		case 0x2: arm_read_wram(address);     break;
-		case 0x3: arm_read_iwram(address);    break;
-		case 0x4: arm_bus = io_read(address); break;
-		case 0x5: arm_read_pram(address);     break;
-		case 0x6: arm_read_vram(address);     break;
-		case 0x7: arm_read_oam(address);      break;
+		case 0x0: return arm_read_bios(address);
+		case 0x2: return arm_read_wram(address);
+		case 0x3: return arm_read_iwram(address);
+		case 0x4: return io_read(address);
+		case 0x5: return arm_read_pram(address);
+		case 0x6: return arm_read_vram(address);
+		case 0x7: return arm_read_oam(address);
 
 		case 0x8:
 		case 0x9:
-			arm_read_rom(address); break;
+			return arm_read_rom(address);
 
 		case 0xa:
 		case 0xb:
-			arm_read_rom(address); break;
+			return arm_read_rom(address);
 
 		case 0xc:
 		case 0xd:
-			arm_read_rom(address); break;
+			return arm_read_rom(address);
 
 		case 0xe:
 		case 0xf:
-			arm_read_flash(address); break;
+			return arm_read_flash(address);
 	}
 
-	return arm_bus;
+	return 0;
 }
 
 static uint8_t arm_readb(uint32_t address) {

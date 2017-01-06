@@ -50,6 +50,6 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-#GBA ROMs
+# GBA ROMs
 *.gba
 *.bin
