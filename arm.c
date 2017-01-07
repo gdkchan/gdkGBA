@@ -416,10 +416,10 @@ static void arm_arith_set(arm_data_t op, uint64_t res, bool add) {
     if (op.rd == 15) {
         if (op.s) {
             arm_spsr_to_cpsr();
+            arm_r15_align();
+            arm_load_pipe();
             arm_check_irq();
-        }
-
-        if (!pipe_reload) {
+        } else {
             arm_r15_align();
             arm_load_pipe();
         }
@@ -501,10 +501,10 @@ static void arm_logic_set(arm_data_t op, uint32_t res) {
     if (op.rd == 15) {
         if (op.s) {
             arm_spsr_to_cpsr();
+            arm_r15_align();
+            arm_load_pipe();
             arm_check_irq();
-        }
-
-        if (!pipe_reload) {
+        } else {
             arm_r15_align();
             arm_load_pipe();
         }
