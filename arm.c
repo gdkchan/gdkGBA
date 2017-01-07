@@ -1724,7 +1724,7 @@ static arm_memio_t t16_memio_mult_op() {
 	arm_memio_t op = {
 		.regs = regs,
 		.rn   = rn,
-		.addr = arm_r.r[rn],
+		.addr = arm_r.r[rn] & ~3,
 		.disp = cnt
 	};
 
@@ -2492,6 +2492,8 @@ static void t16_pop() {
 
 	uint8_t i;
 
+	arm_r.r[13] &= ~3;
+
 	for (i = 0; i < 16; i++) {
 		if (regs & (1 << i)) {
 			arm_r.r[i] = arm_read_s(arm_r.r[13]);
@@ -2500,7 +2502,7 @@ static void t16_pop() {
 		}
 	}
 
-	if (regs & (1 << 15)) {
+	if (regs & 0x8000) {
 		arm_r.r[15] &= ~1;
 
 		arm_load_pipe();
@@ -2514,7 +2516,7 @@ static void t16_push() {
 	regs  = (arm_op >> 0) & 0x00ff;
 	regs |= (arm_op << 6) & 0x4000;
 
-	uint32_t addr = arm_r.r[13];
+	uint32_t addr = arm_r.r[13] & ~3;
 
 	uint8_t i;
 
@@ -2847,7 +2849,7 @@ static void arm_umull() {
 }
 
 //Undefined
-static void arm_und() {
+static void arm_und() {	
 	arm_int(ARM_VEC_UND, ARM_UND);
 }
 
@@ -3130,6 +3132,14 @@ static void t16_inc_r15() {
 		arm_r.r[15] += 2;
 }
 
+static void t16_step() {
+	arm_pipe[1] = arm_fetchh(SEQUENTIAL);
+
+	thumb_proc[arm_op >> 5]();
+
+	t16_inc_r15();
+}
+
 static void arm_inc_r15() {
 	if (pipe_reload)
 		pipe_reload = false;
@@ -3137,36 +3147,41 @@ static void arm_inc_r15() {
 		arm_r.r[15] += 4;
 }
 
+static void arm_step() {
+	arm_pipe[1] = arm_fetch(SEQUENTIAL);
+
+	uint32_t proc;
+
+	proc  = (arm_op >> 16) & 0xff0;
+	proc |= (arm_op >>  4) & 0x00f;
+
+	int8_t cond = arm_op >> 28;
+
+	if (cond == ARM_COND_UNCOND)
+		arm_proc[1][proc]();
+	else if (arm_cond(cond))
+		arm_proc[0][proc]();
+
+	arm_inc_r15();
+}
+
 void arm_exec(uint32_t target_cycles) {
+	if (int_halt) {
+		tick_timers(target_cycles);
+
+		return;
+	}
+
 	while (arm_cycles < target_cycles) {
 		uint32_t cycles = arm_cycles;
 
 		arm_op      = arm_pipe[0];
 		arm_pipe[0] = arm_pipe[1];
 
-		if (arm_in_thumb()) {
-			arm_pipe[1] = arm_fetchh(SEQUENTIAL);
-
-			thumb_proc[arm_op >> 5]();
-
-			t16_inc_r15();
-		} else {
-			arm_pipe[1] = arm_fetch(SEQUENTIAL);
-
-			uint32_t proc;
-
-			proc  = (arm_op >> 16) & 0xff0;
-			proc |= (arm_op >>  4) & 0x00f;
-
-			int8_t cond = arm_op >> 28;
-
-			if (cond == ARM_COND_UNCOND)
-				arm_proc[1][proc]();
-			else if (arm_cond(cond))
-				arm_proc[0][proc]();
-
-			arm_inc_r15();
-		}
+		if (arm_in_thumb())
+			t16_step();
+		else
+			arm_step();
 
 		if (tmr_enb) tick_timers(arm_cycles - cycles);
 
