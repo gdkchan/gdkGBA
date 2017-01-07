@@ -41,63 +41,63 @@
 #define ARM_VEC_FIQ     0x1c //Fast IRQ
 
 typedef union {
-	int32_t w;
+    int32_t w;
 
-	struct {
-		int16_t lo;
-		int16_t hi;
-	} h;
+    struct {
+        int16_t lo;
+        int16_t hi;
+    } h;
 
-	struct {
-		int8_t b0;
-		int8_t b1;
-		int8_t b2;
-		int8_t b3;
-	} b;
+    struct {
+        int8_t b0;
+        int8_t b1;
+        int8_t b2;
+        int8_t b3;
+    } b;
 } arm_word;
 
 typedef struct {
-	uint32_t r[16];
+    uint32_t r[16];
 
-	uint32_t r8_usr;
-	uint32_t r9_usr;
-	uint32_t r10_usr;
-	uint32_t r11_usr;
-	uint32_t r12_usr;
-	uint32_t r13_usr;
-	uint32_t r14_usr;
+    uint32_t r8_usr;
+    uint32_t r9_usr;
+    uint32_t r10_usr;
+    uint32_t r11_usr;
+    uint32_t r12_usr;
+    uint32_t r13_usr;
+    uint32_t r14_usr;
 
-	uint32_t r8_fiq;
-	uint32_t r9_fiq;
-	uint32_t r10_fiq;
-	uint32_t r11_fiq;
-	uint32_t r12_fiq;
-	uint32_t r13_fiq;
-	uint32_t r14_fiq;
+    uint32_t r8_fiq;
+    uint32_t r9_fiq;
+    uint32_t r10_fiq;
+    uint32_t r11_fiq;
+    uint32_t r12_fiq;
+    uint32_t r13_fiq;
+    uint32_t r14_fiq;
 
-	uint32_t r13_irq;
-	uint32_t r14_irq;
+    uint32_t r13_irq;
+    uint32_t r14_irq;
 
-	uint32_t r13_svc;
-	uint32_t r14_svc;
+    uint32_t r13_svc;
+    uint32_t r14_svc;
 
-	uint32_t r13_mon;
-	uint32_t r14_mon;
+    uint32_t r13_mon;
+    uint32_t r14_mon;
 
-	uint32_t r13_abt;
-	uint32_t r14_abt;
+    uint32_t r13_abt;
+    uint32_t r14_abt;
 
-	uint32_t r13_und;
-	uint32_t r14_und;
+    uint32_t r13_und;
+    uint32_t r14_und;
 
-	uint32_t cpsr;
+    uint32_t cpsr;
 
-	uint32_t spsr_fiq;
-	uint32_t spsr_irq;
-	uint32_t spsr_svc;
-	uint32_t spsr_abt;
-	uint32_t spsr_und;
-	uint32_t spsr_mon;
+    uint32_t spsr_fiq;
+    uint32_t spsr_irq;
+    uint32_t spsr_svc;
+    uint32_t spsr_abt;
+    uint32_t spsr_und;
+    uint32_t spsr_mon;
 } arm_regs_t;
 
 arm_regs_t arm_r;

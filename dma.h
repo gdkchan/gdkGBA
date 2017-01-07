@@ -4,10 +4,10 @@
 #define DMA_ENB  (1 << 15)
 
 typedef enum {
-	IMMEDIATELY = 0,
-	VBLANK      = 1,
-	HBLANK      = 2,
-	SPECIAL     = 3
+    IMMEDIATELY = 0,
+    VBLANK      = 1,
+    HBLANK      = 2,
+    SPECIAL     = 3
 } dma_timing_e;
 
 uint32_t dma_src_addr[4];

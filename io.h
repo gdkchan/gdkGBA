@@ -1,12 +1,12 @@
 typedef union {
-	uint32_t w;
+    uint32_t w;
 
-	struct {
-		uint8_t b0;
-		uint8_t b1;
-		uint8_t b2;
-		uint8_t b3;
-	} b;
+    struct {
+        uint8_t b0;
+        uint8_t b1;
+        uint8_t b2;
+        uint8_t b3;
+    } b;
 } io_reg;
 
 #define VBLK_FLAG  (1 <<  0)
@@ -37,9 +37,9 @@ io_reg disp_stat;
 io_reg v_count;
 
 typedef struct {
-	io_reg ctrl;
-	io_reg xofs;
-	io_reg yofs;
+    io_reg ctrl;
+    io_reg xofs;
+    io_reg yofs;
 } bg_t;
 
 bg_t bg[4];
@@ -55,9 +55,9 @@ io_reg win_out;
 io_reg bld_cnt;
 
 typedef struct {
-	io_reg cnt_l;
-	io_reg cnt_h;
-	io_reg cnt_x;
+    io_reg cnt_l;
+    io_reg cnt_h;
+    io_reg cnt_x;
 } snd_ch_t;
 
 snd_ch_t snd_ch[4];
@@ -68,10 +68,10 @@ io_reg sound_cnt_x;
 io_reg sound_bias;
 
 typedef struct {
-	io_reg src;
-	io_reg dst;
-	io_reg count;
-	io_reg ctrl;
+    io_reg src;
+    io_reg dst;
+    io_reg count;
+    io_reg ctrl;
 } dma_ch_t;
 
 dma_ch_t dma_ch[4];
@@ -88,9 +88,9 @@ dma_ch_t dma_ch[4];
 #define BTN_LT   (1 << 9)
 
 typedef struct {
-	io_reg count;
-	io_reg reload;
-	io_reg ctrl;
+    io_reg count;
+    io_reg reload;
+    io_reg ctrl;
 } tmr_t;
 
 tmr_t tmr[4];

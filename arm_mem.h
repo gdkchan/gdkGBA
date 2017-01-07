@@ -15,8 +15,8 @@ uint8_t *flash;
 uint32_t palette[0x200];
 
 typedef enum {
-	NON_SEQ,
-	SEQUENTIAL
+    NON_SEQ,
+    SEQUENTIAL
 } access_type_e;
 
 void arm_access_bus(uint32_t address, uint8_t size, access_type_e at);
