@@ -1071,7 +1071,6 @@ static void arm_mpy_smlaw_(arm_mpy_t op, bool m) {
     if (m) op.lhs >>= 16;
 
     int64_t l = (int16_t)op.lhs;
-
     int64_t a = arm_r.r[op.ra];
 
     int64_t res = (a << 16) + l * op.rhs;
@@ -1343,17 +1342,13 @@ static void arm_memio_ldm(arm_memio_t op) {
 static void arm_memio_ldm_usr(arm_memio_t op) {
     if (arm_op & 0x8000) {
         arm_memio_ldm(op);
-
         arm_spsr_to_cpsr();
-
         arm_check_irq();
     } else {
         int8_t mode = arm_r.cpsr & 0x1f;
 
         arm_mode_set(ARM_USR);
-
         arm_memio_ldm(op);
-
         arm_mode_set(mode);
     }
 }
@@ -1381,9 +1376,7 @@ static void arm_memio_stm_usr(arm_memio_t op) {
     int8_t mode = arm_r.cpsr & 0x1f;
 
     arm_mode_set(ARM_USR);
-
     arm_memio_stm(op);
-
     arm_mode_set(mode);
 }
 

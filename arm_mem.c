@@ -19,7 +19,8 @@ flash_mode_e flash_mode = IDLE;
 
 bool flash_id_mode = false;
 
-uint8_t eeprom_buff[0x100];
+bool     eeprom_write = false;
+uint32_t eeprom_mask = 0;
 
 static const uint8_t bus_size_lut[16]  = { 4, 4, 2, 4, 4, 2, 2, 4, 2, 2, 2, 2, 2, 2, 1, 1 };
 
@@ -55,14 +56,14 @@ uint32_t bios_op;
 
 static uint8_t bios_read(uint32_t address) {
     uint8_t bios_val;
-    
+
     if ((address | arm_r.r[15]) < 0x4000) {
         bios_val = bios[address & 0x3fff];
         bios_op |= bios_val << (address & 3) * 8;
     } else {
         bios_val = bios_op >> (address & 3) * 8;
     }
-    
+
     return bios_val;
 }
 
@@ -88,6 +89,19 @@ static uint8_t oam_read(uint32_t address) {
 
 static uint8_t rom_read(uint32_t address) {
     return rom[address & 0x1ffffff];
+}
+
+static uint32_t rom_eep_read(uint32_t address) {
+    /*
+     * On 16 MiB carts, EEPROM is accessed through 0x0D000000 ~ 0x0DFFFFFF (since this area is unused anyway)
+     * On bigger than 16 MiB carts, it can only be accessed at 0x0DFFFF00 ~ 0x0DFFFFFF
+     * We guess that using the Address it writes to the EEPROM (probably would be better to use the cart size directly)
+     * This is also useful to know if the game uses EEPROM (since only those games will try writing to GamePak area?)
+     */
+    if (eeprom_write && ((address & eeprom_mask) == eeprom_mask))
+        return 1; //Read from EEPROM, this returns 1 (when ready) on Write requests, or (TODO) Data on Read requests
+    else
+        return rom_read(address);
 }
 
 static uint8_t flash_read(uint32_t address) {
@@ -124,7 +138,7 @@ static uint8_t arm_read_(uint32_t address) {
 
         case 0xc:
         case 0xd:
-            return rom_read(address);
+            return rom_eep_read(address);
 
         case 0xe:
         case 0xf:
@@ -245,7 +259,7 @@ static void flash_write(uint32_t address, uint8_t value) {
             //Command to do something on Flash ROM
             switch (value) {
                 //Erase all
-                case 0x10: 
+                case 0x10:
                     if (flash_mode == ERASE) {
                         uint32_t idx;
 
@@ -286,6 +300,11 @@ static void arm_write_(uint32_t address, uint8_t value) {
         case 0x6: vram_write(address,  value); break;
         case 0x7: oam_write(address,   value); break;
 
+        case 0xd:
+            eeprom_write = true;
+            eeprom_mask = address & 0xffff00 ? 0xffff00 : 0;
+        break;
+        
         case 0xe:
         case 0xf:
             flash_write(address, value); break;
