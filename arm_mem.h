@@ -14,6 +14,10 @@ uint8_t *flash;
 
 uint32_t palette[0x200];
 
+uint32_t bios_op;
+
+int64_t cart_rom_size;
+
 typedef enum {
     NON_SEQ,
     SEQUENTIAL

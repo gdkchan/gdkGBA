@@ -44,10 +44,16 @@ typedef struct {
 
 bg_t bg[4];
 
-io_reg bg_refxl[4];
-io_reg bg_refxh[4];
-io_reg bg_refyl[4];
-io_reg bg_refyh[4];
+io_reg bg_pa[4];
+io_reg bg_pb[4];
+io_reg bg_pc[4];
+io_reg bg_pd[4];
+
+io_reg bg_refxe[4];
+io_reg bg_refye[4];
+
+io_reg bg_refxi[4];
+io_reg bg_refyi[4];
 
 io_reg win_in;
 io_reg win_out;

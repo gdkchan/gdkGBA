@@ -27,6 +27,8 @@ static void render_obj(uint8_t prio) {
     uint8_t obj_index;
     uint32_t offset = 0x3f8;
 
+    uint32_t surf_addr = v_count.w * 240 * 4;
+
     for (obj_index = 0; obj_index < 128; obj_index++) {
         uint16_t attr0 = oam[offset + 0] | (oam[offset + 1] << 8);
         uint16_t attr1 = oam[offset + 2] | (oam[offset + 3] << 8);
@@ -47,6 +49,9 @@ static void render_obj(uint8_t prio) {
 
         int16_t pa, pb, pc, pd;
 
+        pa = pd = 0x100; //1.0
+        pb = pc = 0x000; //0.0
+
         if (affine) {
             uint32_t p_base = affine_p * 32;
 
@@ -60,9 +65,6 @@ static void render_obj(uint8_t prio) {
 
         uint8_t x_tiles = x_tiles_lut[lut_idx];
         uint8_t y_tiles = y_tiles_lut[lut_idx];
-
-        uint16_t tw = x_tiles * 8;
-        uint16_t th = y_tiles * 8;
 
         int32_t rcx = x_tiles * 4;
         int32_t rcy = y_tiles * 4;
@@ -84,10 +86,10 @@ static void render_obj(uint8_t prio) {
             uint16_t chr_numb = (attr2 >>  0) & 0x3ff;
             uint8_t  chr_pal  = (attr2 >> 12) & 0xf;
 
+            uint32_t chr_base = 0x10000 | chr_numb * 32;
+
             obj_x <<= 7;
             obj_x >>= 7;
-
-            if (is_256) chr_numb >>= 1;
 
             int32_t x, y = v_count.w - obj_y;
 
@@ -96,37 +98,40 @@ static void render_obj(uint8_t prio) {
             uint8_t tsz = is_256 ? 64 : 32; //Tile block size (in bytes, = (8 * 8 * bpp) / 8)
             uint8_t lsz = is_256 ?  8 :  4; //Pixel line row size (in bytes)
 
+            int32_t ox = pa * -rcx + pb * (y - rcy) + (x_tiles << 10);
+            int32_t oy = pc * -rcx + pd * (y - rcy) + (y_tiles << 10);
+
+            if (!affine && flip_x) {
+                ox = (x_tiles * 8 - 1) << 8;
+                pa = -0x100;
+            }
+
             uint32_t tys = (disp_cnt.w & MAP_1D_FLAG) ? x_tiles * tsz : 1024; //Tile row stride
 
-            for (x = 0; x < rcx * 2; x++) {
+            uint32_t address = surf_addr + obj_x * 4;
+
+            for (x = 0; x < rcx * 2;
+                x++,
+                ox += pa,
+                oy += pc,
+                address += 4) {
                 if (obj_x + x < 0) continue;
                 if (obj_x + x >= 240) break;
 
                 uint32_t vram_addr;
                 uint32_t pal_idx;
 
-                int32_t _x = x;
-                int32_t _y = y;
+                uint16_t tile_x = ox >> 11;
+                uint16_t tile_y = oy >> 11;
 
-                if (!affine && flip_x) _x ^= (x_tiles * 8) - 1;
+                if (ox < 0 || tile_x >= x_tiles) continue;
+                if (oy < 0 || tile_y >= y_tiles) continue;
 
-                if (affine) {
-                    _x = (pa * (x - rcx) + pb * (y - rcy) + (tw << 7)) >> 8;
-                    _y = (pc * (x - rcx) + pd * (y - rcy) + (th << 7)) >> 8;
-                }
-
-                if (_x < 0 || _x >= tw) continue;
-                if (_y < 0 || _y >= th) continue;
-
-                uint16_t tile_x = _x >> 3;
-                uint16_t tile_y = _y >> 3;
-
-                uint16_t chr_x  = _x &  7;
-                uint16_t chr_y  = _y &  7;
+                uint16_t chr_x = (ox >> 8) & 7;
+                uint16_t chr_y = (oy >> 8) & 7;
 
                 uint32_t chr_addr =
-                    0x10000        +
-                    chr_numb * tsz +
+                    chr_base       +
                     tile_y   * tys +
                     chr_y    * lsz;
 
@@ -138,11 +143,9 @@ static void render_obj(uint8_t prio) {
                     pal_idx   = (vram[vram_addr] >> (chr_x & 1) * 4) & 0xf;
                 }
 
-                uint32_t surf_addr = v_count.w * 240 * 4 + (obj_x + x) * 4;
-
                 uint32_t pal_addr = 0x100 | pal_idx | (!is_256 ? chr_pal * 16 : 0);
 
-                if (pal_idx) *(uint32_t *)(screen + surf_addr) = palette[pal_addr];
+                if (pal_idx) *(uint32_t *)(screen + address) = palette[pal_addr];
             }
         }
     }
@@ -170,50 +173,75 @@ static void render_bg() {
                     uint32_t chr_base  = ((bg[bg_idx].ctrl.w >>  2) & 0x3)  << 14;
                     bool     is_256    =  (bg[bg_idx].ctrl.w >>  7) & 0x1;
                     uint16_t scrn_base = ((bg[bg_idx].ctrl.w >>  8) & 0x1f) << 11;
+                    bool     aff_wrap  =  (bg[bg_idx].ctrl.w >> 13) & 0x1;
                     uint16_t scrn_size =  (bg[bg_idx].ctrl.w >> 14);
 
                     bool affine = mode == 2 || (mode == 1 && bg_idx == 2);
 
-                    int32_t xofs, yofs;
-
-                    if (affine) {
-                        xofs = (bg_refxl[bg_idx].w | (((int32_t)bg_refxh[bg_idx].w << 20) >> 4)) >> 8;
-                        yofs = (bg_refyl[bg_idx].w | (((int32_t)bg_refyh[bg_idx].w << 20) >> 4)) >> 8;
-                    } else {
-                        xofs = bg[bg_idx].xofs.w;
-                        yofs = bg[bg_idx].yofs.w;
-                    }
-
-                    uint16_t oy     = v_count.w + yofs;
-                    uint16_t tmy    = oy >> 3;
-                    uint16_t scrn_y = (tmy >> 5) & 1;
-
-                    uint8_t x;
-
                     uint32_t address = surf_addr;
 
-                    for (x = 0; x < 240; x++) {
-                        uint16_t ox     = x + xofs;
-                        uint16_t tmx    = ox >> 3;
-                        uint16_t scrn_x = (tmx >> 5) & 1;
+                    if (affine) {
+                        int16_t pa = bg_pa[bg_idx].w;
+                        int16_t pb = bg_pb[bg_idx].w;
+                        int16_t pc = bg_pc[bg_idx].w;
+                        int16_t pd = bg_pd[bg_idx].w;
 
-                        uint16_t chr_x = ox & 7;
-                        uint16_t chr_y = oy & 7;
+                        int32_t ox = ((int32_t)bg_refxi[bg_idx].w << 4) >> 4;
+                        int32_t oy = ((int32_t)bg_refyi[bg_idx].w << 4) >> 4;
+ 
+                        bg_refxi[bg_idx].w += pb;
+                        bg_refyi[bg_idx].w += pd;
 
-                        uint16_t pal_idx;
-                        uint16_t pal_base = 0;
+                        uint8_t tms = 16 << scrn_size;
+                        uint8_t tmsk = tms - 1;
 
-                        if (affine) {
-                            //TODO: Implement Rotation/Scafling that will need a change in this logic
-                            uint8_t tms = (16 << scrn_size);
-                            uint8_t tmsk = tms - 1;
+                        uint8_t x;
 
-                            uint32_t map_addr = scrn_base + (tmy & tmsk) * tms + (tmx & tmsk);
+                        for (x = 0; x < 240;
+                            x++,
+                            ox += pa,
+                            oy += pc,
+                            address += 4) {
+                            int16_t tmx = ox >> 11;
+                            int16_t tmy = oy >> 11;
+
+                            if (aff_wrap) {
+                                tmx &= tmsk;
+                                tmy &= tmsk;
+                            } else {
+                                if (tmx < 0 || tmx >= tms) continue;
+                                if (tmy < 0 || tmy >= tms) continue;
+                            }
+
+                            uint16_t chr_x = (ox >> 8) & 7;
+                            uint16_t chr_y = (oy >> 8) & 7;
+
+                            uint32_t map_addr = scrn_base + tmy * tms + tmx;
 
                             uint32_t vram_addr = chr_base + vram[map_addr] * 64 + chr_y * 8 + chr_x;
 
-                            pal_idx = vram[vram_addr];
-                        } else {
+                            uint16_t pal_idx = vram[vram_addr];
+
+                            if (pal_idx) *(uint32_t *)(screen + address) = palette[pal_idx];
+                        }
+                    } else {
+                        uint16_t oy     = v_count.w + bg[bg_idx].yofs.w;
+                        uint16_t tmy    = oy >> 3;
+                        uint16_t scrn_y = (tmy >> 5) & 1;
+
+                        uint8_t x;
+
+                        for (x = 0; x < 240; x++) {
+                            uint16_t ox     = x + bg[bg_idx].xofs.w;
+                            uint16_t tmx    = ox >> 3;
+                            uint16_t scrn_x = (tmx >> 5) & 1;
+
+                            uint16_t chr_x = ox & 7;
+                            uint16_t chr_y = oy & 7;
+
+                            uint16_t pal_idx;
+                            uint16_t pal_base = 0;
+
                             uint32_t map_addr = scrn_base + (tmy & 0x1f) * 32 * 2 + (tmx & 0x1f) * 2;
 
                             switch (scrn_size) {
@@ -243,13 +271,13 @@ static void render_bg() {
                                 vram_addr = chr_base + chr_numb * 32 + chr_y * 4 + (chr_x >> 1);
                                 pal_idx   = (vram[vram_addr] >> (chr_x & 1) * 4) & 0xf;
                             }
+
+                            uint32_t pal_addr = pal_idx | pal_base;
+
+                            if (pal_idx) *(uint32_t *)(screen + address) = palette[pal_addr];
+
+                            address += 4;
                         }
-
-                        uint32_t pal_addr = pal_idx | pal_base;
-
-                        if (pal_idx) *(uint32_t *)(screen + address) = palette[pal_addr];
-
-                        address += 4;
                     }
                 }
 
@@ -354,6 +382,12 @@ void run_frame() {
         if (v_count.w == disp_stat.b.b1) vcount_match();
 
         if (v_count.w == LINES_VISIBLE) {
+            bg_refxi[2].w = bg_refxe[2].w;
+            bg_refyi[2].w = bg_refye[2].w;
+            
+            bg_refxi[3].w = bg_refxe[3].w;
+            bg_refyi[3].w = bg_refye[3].w;
+            
             vblank_start();
             dma_transfer(VBLANK);
         }
@@ -361,12 +395,12 @@ void run_frame() {
         arm_exec(CYC_LINE_HBLK0);
 
         //H-Blank start
-        hblank_start();
-
         if (v_count.w < LINES_VISIBLE) {
             render_line();
             dma_transfer(HBLANK);
         }
+
+        hblank_start();
 
         arm_exec(CYC_LINE_HBLK1);
     }

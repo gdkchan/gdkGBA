@@ -49,12 +49,12 @@ int main(int argc, char* argv[]) {
 
     fseek(image, 0, SEEK_END);
 
-    int64_t size = ftell(image);
+    cart_rom_size = ftell(image);
 
-    if (size > max_rom_sz) size = max_rom_sz;
+    if (cart_rom_size > max_rom_sz) cart_rom_size = max_rom_sz;
 
     fseek(image, 0, SEEK_SET);
-    fread(rom, size, 1, image);
+    fread(rom, cart_rom_size, 1, image);
 
     fclose(image);
 

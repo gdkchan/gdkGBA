@@ -255,6 +255,7 @@ static bool arm_in_thumb() {
 
 static uint16_t arm_fetchh(access_type_e at) {
     switch (arm_r.r[15] >> 24) {
+        case 0x0: arm_cycles += 1; return (bios_op = *(uint16_t *)(bios + (arm_r.r[15] & 0x3fff)));
         case 0x2: arm_cycles += 3; return *(uint16_t *)(wram  + (arm_r.r[15] & 0x3ffff));
         case 0x3: arm_cycles += 1; return *(uint16_t *)(iwram + (arm_r.r[15] & 0x7fff));
         case 0x5: arm_cycles += 1; return *(uint16_t *)(pram  + (arm_r.r[15] & 0x3ff));
@@ -297,6 +298,7 @@ static uint16_t arm_fetchh(access_type_e at) {
 
 static uint32_t arm_fetch(access_type_e at) {
     switch (arm_r.r[15] >> 24) {
+        case 0x0: arm_cycles += 1; return (bios_op = *(uint32_t *)(bios + (arm_r.r[15] & 0x3fff)));
         case 0x2: arm_cycles += 6; return *(uint32_t *)(wram  + (arm_r.r[15] & 0x3ffff));
         case 0x3: arm_cycles += 1; return *(uint32_t *)(iwram + (arm_r.r[15] & 0x7fff));
         case 0x5: arm_cycles += 1; return *(uint32_t *)(pram  + (arm_r.r[15] & 0x3ff));
@@ -2217,7 +2219,7 @@ static void arm_ldr_reg() {
 }
 
 static void t16_ldr_imm5() {
-    arm_memio_ldr(t16_memio_imm5_op(4));
+    arm_memio_ldr(t16_memio_imm5_op(ARM_WORD_SZ));
 }
 
 static void t16_ldr_sp8() {
@@ -2242,7 +2244,7 @@ static void arm_ldrb_reg() {
 }
 
 static void t16_ldrb_imm5() {
-    arm_memio_ldrb(t16_memio_imm5_op(1));
+    arm_memio_ldrb(t16_memio_imm5_op(ARM_BYTE_SZ));
 }
 
 static void t16_ldrb_reg() {
@@ -2277,7 +2279,7 @@ static void arm_ldrh_reg() {
 }
 
 static void t16_ldrh_imm5() {
-    arm_memio_ldrh(t16_memio_imm5_op(2));
+    arm_memio_ldrh(t16_memio_imm5_op(ARM_HWORD_SZ));
 }
 
 static void t16_ldrh_reg() {
@@ -2681,7 +2683,7 @@ static void arm_str_reg() {
 }
 
 static void t16_str_imm5() {
-    arm_memio_str(t16_memio_imm5_op(4));
+    arm_memio_str(t16_memio_imm5_op(ARM_WORD_SZ));
 }
 
 static void t16_str_sp8() {
@@ -2702,7 +2704,7 @@ static void arm_strb_reg() {
 }
 
 static void t16_strb_imm5() {
-    arm_memio_strb(t16_memio_imm5_op(1));
+    arm_memio_strb(t16_memio_imm5_op(ARM_BYTE_SZ));
 }
 
 static void t16_strb_reg() {
@@ -2737,7 +2739,7 @@ static void arm_strh_reg() {
 }
 
 static void t16_strh_imm5() {
-    arm_memio_strh(t16_memio_imm5_op(2));
+    arm_memio_strh(t16_memio_imm5_op(ARM_HWORD_SZ));
 }
 
 static void t16_strh_reg() {

@@ -203,23 +203,89 @@ void io_write(uint32_t address, uint8_t value) {
         case 0x0400001e: bg[3].yofs.b.b0      =  value; break;
         case 0x0400001f: bg[3].yofs.b.b1      =  value; break;
 
-        case 0x04000028: bg_refxl[2].b.b0     =  value; break;
-        case 0x04000029: bg_refxl[2].b.b1     =  value; break;
-        case 0x0400002a: bg_refxh[2].b.b0     =  value; break;
-        case 0x0400002b: bg_refxh[2].b.b1     =  value; break;
-        case 0x0400002c: bg_refyl[2].b.b0     =  value; break;
-        case 0x0400002d: bg_refyl[2].b.b1     =  value; break;
-        case 0x0400002e: bg_refyh[2].b.b0     =  value; break;
-        case 0x0400002f: bg_refyh[2].b.b1     =  value; break;
+        case 0x04000020: bg_pa[2].b.b0        =  value; break;
+        case 0x04000021: bg_pa[2].b.b1        =  value; break;
+        case 0x04000022: bg_pb[2].b.b0        =  value; break;
+        case 0x04000023: bg_pb[2].b.b1        =  value; break;
+        case 0x04000024: bg_pc[2].b.b0        =  value; break;
+        case 0x04000025: bg_pc[2].b.b1        =  value; break;
+        case 0x04000026: bg_pd[2].b.b0        =  value; break;
+        case 0x04000027: bg_pd[2].b.b1        =  value; break;
 
-        case 0x04000038: bg_refxl[3].b.b0     =  value; break;
-        case 0x04000039: bg_refxl[3].b.b1     =  value; break;
-        case 0x0400003a: bg_refxh[3].b.b0     =  value; break;
-        case 0x0400003b: bg_refxh[3].b.b1     =  value; break;
-        case 0x0400003c: bg_refyl[3].b.b0     =  value; break;
-        case 0x0400003d: bg_refyl[3].b.b1     =  value; break;
-        case 0x0400003e: bg_refyh[3].b.b0     =  value; break;
-        case 0x0400003f: bg_refyh[3].b.b1     =  value; break;
+        case 0x04000028:
+            bg_refxe[2].b.b0 =
+            bg_refxi[2].b.b0 = value;
+        break;
+        case 0x04000029:
+            bg_refxe[2].b.b1 =
+            bg_refxi[2].b.b1 = value;
+        break;
+        case 0x0400002a:
+            bg_refxe[2].b.b2 =
+            bg_refxi[2].b.b2 = value;
+        break;
+        case 0x0400002b:
+            bg_refxe[2].b.b3 =
+            bg_refxi[2].b.b3 = value;
+        break;
+        case 0x0400002c:
+            bg_refye[2].b.b0 =
+            bg_refyi[2].b.b0 = value;
+        break;
+        case 0x0400002d:
+            bg_refye[2].b.b1 =
+            bg_refyi[2].b.b1 = value;
+        break;
+        case 0x0400002e:
+            bg_refye[2].b.b2 =
+            bg_refyi[2].b.b2 = value;
+        break;
+        case 0x0400002f:
+            bg_refye[2].b.b3 =
+            bg_refyi[2].b.b3 = value;
+        break;
+
+        case 0x04000030: bg_pa[3].b.b0        =  value; break;
+        case 0x04000031: bg_pa[3].b.b1        =  value; break;
+        case 0x04000032: bg_pb[3].b.b0        =  value; break;
+        case 0x04000033: bg_pb[3].b.b1        =  value; break;
+        case 0x04000034: bg_pc[3].b.b0        =  value; break;
+        case 0x04000035: bg_pc[3].b.b1        =  value; break;
+        case 0x04000036: bg_pd[3].b.b0        =  value; break;
+        case 0x04000037: bg_pd[3].b.b1        =  value; break;
+
+        case 0x04000038:
+            bg_refxe[3].b.b0 =
+            bg_refxi[3].b.b0 = value;
+        break;
+        case 0x04000039:
+            bg_refxe[3].b.b1 =
+            bg_refxi[3].b.b1 = value;
+        break;
+        case 0x0400003a:
+            bg_refxe[3].b.b2 =
+            bg_refxi[3].b.b2 = value;
+        break;
+        case 0x0400003b:
+            bg_refxe[3].b.b3 =
+            bg_refxi[3].b.b3 = value;
+        break;
+        case 0x0400003c:
+            bg_refye[3].b.b0 =
+            bg_refyi[3].b.b0 = value;
+        break;
+        case 0x0400003d:
+            bg_refye[3].b.b1 =
+            bg_refyi[3].b.b1 = value;
+        break;
+        case 0x0400003e:
+            bg_refye[3].b.b2 =
+            bg_refyi[3].b.b2 = value;
+        break;
+        case 0x0400003f:
+            bg_refye[3].b.b3 =
+            bg_refyi[3].b.b3 = value;
+        break;
 
         case 0x04000048: win_in.b.b0          =  value; break;
         case 0x04000049: win_in.b.b1          =  value; break;
