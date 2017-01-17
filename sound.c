@@ -259,25 +259,8 @@ static int8_t noise_sample() {
 
 int16_t snd_buffer[BUFF_SAMPLES];
 
-uint32_t snd_cur_play = 0;
-uint32_t snd_cur_write = 0;
-
-void sound_mix(void *data, uint8_t *stream, int32_t len) {
-    uint16_t i;
-
-    for (i = 0; i < len; i += 4) {
-        *(int16_t *)(stream + (i | 0)) = snd_buffer[snd_cur_play++ & BUFF_SAMPLES_MSK] << 4;
-        *(int16_t *)(stream + (i | 2)) = snd_buffer[snd_cur_play++ & BUFF_SAMPLES_MSK] << 4;
-    }
-
-    //Avoid desync between the Play cursor and the Write cursor
-    snd_cur_play += ((int32_t)(snd_cur_write - snd_cur_play) >> 9) & ~1;
-
-    if ((snd_cur_play & snd_cur_write) >= BUFF_SAMPLES) {
-        snd_cur_play  &= BUFF_SAMPLES_MSK;
-        snd_cur_write &= BUFF_SAMPLES_MSK;
-    }
-}
+uint32_t snd_cur_play  = 0;
+uint32_t snd_cur_write = 0x200;
 
 void wave_reset() {
     if (wave_ch.wave.w & WAVE_64) {
@@ -289,6 +272,29 @@ void wave_reset() {
         wave_position = (wave_ch.wave.w >> 1) & 0x20;
         wave_samples  = 32;
     }
+}
+
+void sound_buffer_wrap() {
+    /*
+     * This prevents the cursor from overflowing
+     * Call after some time (like per frame, or per second...)
+     */
+    if ((snd_cur_play / BUFF_SAMPLES) == (snd_cur_write / BUFF_SAMPLES)) {
+        snd_cur_play  &= BUFF_SAMPLES_MSK;
+        snd_cur_write &= BUFF_SAMPLES_MSK;
+    }
+}
+
+void sound_mix(void *data, uint8_t *stream, int32_t len) {
+    uint16_t i;
+
+    for (i = 0; i < len; i += 4) {
+        *(int16_t *)(stream + (i | 0)) = snd_buffer[snd_cur_play++ & BUFF_SAMPLES_MSK] << 4;
+        *(int16_t *)(stream + (i | 2)) = snd_buffer[snd_cur_play++ & BUFF_SAMPLES_MSK] << 4;
+    }
+
+    //Avoid desync between the Play cursor and the Write cursor
+    snd_cur_play += ((int32_t)(snd_cur_write - snd_cur_play) >> 8) & ~1;
 }
 
 void fifo_a_copy() {
