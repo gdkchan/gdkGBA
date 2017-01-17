@@ -8,4 +8,4 @@ uint8_t tmr_enb;
 uint8_t tmr_irq;
 uint8_t tmr_ie;
 
-void tick_timers(uint32_t cycles);
+void timers_clock(uint32_t cycles);

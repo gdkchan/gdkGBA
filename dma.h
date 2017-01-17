@@ -16,3 +16,4 @@ uint32_t dma_dst_addr[4];
 uint32_t dma_count[4];
 
 void dma_transfer(dma_timing_e timing);
+void dma_transfer_fifo(uint8_t ch);

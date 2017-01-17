@@ -135,40 +135,49 @@ static uint8_t arm_read_(uint32_t address) {
     return 0;
 }
 
-static uint8_t arm_readb(uint32_t address) {
-    return arm_read_(address);
+#define IS_OPEN_BUS(a)  (((a) >> 28) || ((a) >= 0x00004000 && (a) < 0x02000000))
+
+uint8_t arm_readb(uint32_t address) {
+    if (IS_OPEN_BUS(address))
+        return arm_read_(arm_r.r[15]);
+    else
+        return arm_read_(address);
 }
 
-static uint32_t arm_readh(uint32_t address) {
-    if (address < 0x4000 && arm_r.r[15] >= 0x4000) {
-        return bios_op;
-    } else {
-        uint32_t a = address & ~1;
-        uint8_t  s = address &  1;
+uint32_t arm_readh(uint32_t address) {
+    if (address < 0x4000 && arm_r.r[15] >= 0x4000)
+        return bios_op & 0xffff;
 
-        uint32_t value =
-            arm_read_(a | 0) << 0 |
-            arm_read_(a | 1) << 8;
+    if (IS_OPEN_BUS(address))
+        return arm_pipe[1] & 0xffff;
 
-        return ROR(value, s << 3);
-    }
+    uint32_t a = address & ~1;
+    uint8_t  s = address &  1;
+
+    uint32_t value =
+        arm_read_(a | 0) << 0 |
+        arm_read_(a | 1) << 8;
+
+    return ROR(value, s << 3);
 }
 
-static uint32_t arm_read(uint32_t address) {
-    if (address < 0x4000 && arm_r.r[15] >= 0x4000) {
+uint32_t arm_read(uint32_t address) {
+    if (address < 0x4000 && arm_r.r[15] >= 0x4000)
         return bios_op;
-    } else {
-        uint32_t a = address & ~3;
-        uint8_t  s = address &  3;
 
-        uint32_t value =
-            arm_read_(a | 0) <<  0 |
-            arm_read_(a | 1) <<  8 |
-            arm_read_(a | 2) << 16 |
-            arm_read_(a | 3) << 24;
+    if (IS_OPEN_BUS(address))
+        return arm_pipe[1];
 
-        return ROR(value, s << 3);
-    }
+    uint32_t a = address & ~3;
+    uint8_t  s = address &  3;
+
+    uint32_t value =
+        arm_read_(a | 0) <<  0 |
+        arm_read_(a | 1) <<  8 |
+        arm_read_(a | 2) << 16 |
+        arm_read_(a | 3) << 24;
+
+    return ROR(value, s << 3);
 }
 
 uint8_t arm_readb_n(uint32_t address) {
@@ -299,14 +308,14 @@ static void arm_write_(uint32_t address, uint8_t value) {
             eeprom_write = true;
             //TODO
         break;
-        
+
         case 0xe:
         case 0xf:
             flash_write(address, value); break;
     }
 }
 
-static void arm_writeb(uint32_t address, uint8_t value) {
+void arm_writeb(uint32_t address, uint8_t value) {
     uint8_t ah = address >> 24;
 
     if (ah == 7) return; //OAM doesn't supposrt 8 bits writes
@@ -319,14 +328,14 @@ static void arm_writeb(uint32_t address, uint8_t value) {
     }
 }
 
-static void arm_writeh(uint32_t address, uint16_t value) {
+void arm_writeh(uint32_t address, uint16_t value) {
     uint32_t a = address & ~1;
 
     arm_write_(a | 0, (uint8_t)(value >> 0));
     arm_write_(a | 1, (uint8_t)(value >> 8));
 }
 
-static void arm_write(uint32_t address, uint32_t value) {
+void arm_write(uint32_t address, uint32_t value) {
     uint32_t a = address & ~3;
 
     arm_write_(a | 0, (uint8_t)(value >>  0));

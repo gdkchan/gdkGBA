@@ -2,6 +2,7 @@
 
 #include "dma.h"
 #include "io.h"
+#include "sound.h"
 #include "timer.h"
 
 uint8_t io_read(uint32_t address) {
@@ -30,38 +31,60 @@ uint8_t io_read(uint32_t address) {
         case 0x04000050: return bld_cnt.b.b0;
         case 0x04000051: return bld_cnt.b.b1;
 
-        case 0x04000060: return snd_ch[0].cnt_l.b.b0;
-        case 0x04000061: return snd_ch[0].cnt_l.b.b1;
-        case 0x04000062: return snd_ch[0].cnt_h.b.b0;
-        case 0x04000063: return snd_ch[0].cnt_h.b.b1;
-        case 0x04000064: return snd_ch[0].cnt_x.b.b0;
-        case 0x04000065: return snd_ch[0].cnt_x.b.b1;
+        case 0x04000060: return sqr_ch[0].sweep.b.b0;
+        case 0x04000061: return sqr_ch[0].sweep.b.b1;
+        case 0x04000062: return sqr_ch[0].tone.b.b0;
+        case 0x04000063: return sqr_ch[0].tone.b.b1;
+        case 0x04000064: return sqr_ch[0].ctrl.b.b0;
+        case 0x04000065: return sqr_ch[0].ctrl.b.b1;
 
-        case 0x04000068: return snd_ch[1].cnt_l.b.b0;
-        case 0x04000069: return snd_ch[1].cnt_l.b.b1;
-        case 0x0400006c: return snd_ch[1].cnt_h.b.b0;
-        case 0x0400006d: return snd_ch[1].cnt_h.b.b1;
+        case 0x04000068: return sqr_ch[1].tone.b.b0;
+        case 0x04000069: return sqr_ch[1].tone.b.b1;
+        case 0x0400006c: return sqr_ch[1].ctrl.b.b0;
+        case 0x0400006d: return sqr_ch[1].ctrl.b.b1;
 
-        case 0x04000070: return snd_ch[2].cnt_l.b.b0;
-        case 0x04000071: return snd_ch[2].cnt_l.b.b1;
-        case 0x04000072: return snd_ch[2].cnt_h.b.b0;
-        case 0x04000073: return snd_ch[2].cnt_h.b.b1;
-        case 0x04000074: return snd_ch[2].cnt_x.b.b0;
-        case 0x04000075: return snd_ch[2].cnt_x.b.b1;
+        case 0x04000070: return wave_ch.wave.b.b0;
+        case 0x04000071: return wave_ch.wave.b.b1;
+        case 0x04000072: return wave_ch.volume.b.b0;
+        case 0x04000073: return wave_ch.volume.b.b1;
+        case 0x04000074: return wave_ch.ctrl.b.b0;
+        case 0x04000075: return wave_ch.ctrl.b.b1;
 
-        case 0x04000078: return snd_ch[3].cnt_l.b.b0;
-        case 0x04000079: return snd_ch[3].cnt_l.b.b1;
-        case 0x0400007c: return snd_ch[3].cnt_h.b.b0;
-        case 0x0400007d: return snd_ch[3].cnt_h.b.b1;
+        case 0x04000078: return noise_ch.env.b.b0;
+        case 0x04000079: return noise_ch.env.b.b1;
+        case 0x0400007c: return noise_ch.ctrl.b.b0;
+        case 0x0400007d: return noise_ch.ctrl.b.b1;
 
-        case 0x04000080: return sound_cnt_l.b.b0;
-        case 0x04000081: return sound_cnt_l.b.b1;
-        case 0x04000082: return sound_cnt_h.b.b0;
-        case 0x04000083: return sound_cnt_h.b.b1;
-        case 0x04000084: return sound_cnt_x.b.b0;
-        case 0x04000085: return sound_cnt_x.b.b1;
-        case 0x04000088: return sound_bias.b.b0;
-        case 0x04000089: return sound_bias.b.b1;
+        case 0x04000080: return snd_psg_vol.b.b0;
+        case 0x04000081: return snd_psg_vol.b.b1;
+        case 0x04000082: return snd_pcm_vol.b.b0;
+        case 0x04000083: return snd_pcm_vol.b.b1;
+        case 0x04000084: return snd_psg_enb.b.b0;
+        case 0x04000085: return snd_psg_enb.b.b1;
+        case 0x04000088: return snd_bias.b.b0;
+        case 0x04000089: return snd_bias.b.b1;
+
+        case 0x04000090:
+        case 0x04000091:
+        case 0x04000092:
+        case 0x04000093:
+        case 0x04000094:
+        case 0x04000095:
+        case 0x04000096:
+        case 0x04000097:
+        case 0x04000098:
+        case 0x04000099:
+        case 0x0400009a:
+        case 0x0400009b:
+        case 0x0400009c:
+        case 0x0400009d:
+        case 0x0400009e:
+        case 0x0400009f: {
+            uint8_t wave_bank = (wave_ch.wave.w >> 2) & 0x10;
+            uint8_t wave_idx  = (wave_bank ^ 0x10) | (address & 0xf);
+
+            return wave_ram[wave_idx];
+        }
 
         case 0x040000ba: return dma_ch[0].ctrl.b.b0;
         case 0x040000bb: return dma_ch[0].ctrl.b.b1;
@@ -165,6 +188,25 @@ static void tmr_load(uint8_t idx, uint8_t value) {
 
         tmr_icnt[idx] = 0;
     }
+}
+
+static void snd_reset_state(uint8_t ch) {
+    snd_ch_state[ch].phase       = false;
+    snd_ch_state[ch].samples     = 0;
+    snd_ch_state[ch].length_time = 0;
+    snd_ch_state[ch].sweep_time  = 0;
+    snd_ch_state[ch].env_time    = 0;
+
+    if (ch == 2) wave_reset();
+
+    if (ch == 3) {
+        if (noise_ch.ctrl.w & NOISE_7)
+            snd_ch_state[ch].lfsr = 0x007f;
+        else
+            snd_ch_state[ch].lfsr = 0x7fff;
+    }
+
+    snd_psg_enb.w |= (1 << ch);
 }
 
 void io_write(uint32_t address, uint8_t value) {
@@ -295,38 +337,180 @@ void io_write(uint32_t address, uint8_t value) {
         case 0x04000050: bld_cnt.b.b0         =  value; break;
         case 0x04000051: bld_cnt.b.b1         =  value; break;
 
-        case 0x04000060: snd_ch[0].cnt_l.b.b0 =  value; break;
-        case 0x04000061: snd_ch[0].cnt_l.b.b1 =  value; break;
-        case 0x04000062: snd_ch[0].cnt_h.b.b0 =  value; break;
-        case 0x04000063: snd_ch[0].cnt_h.b.b1 =  value; break;
-        case 0x04000064: snd_ch[0].cnt_x.b.b0 =  value; break;
-        case 0x04000065: snd_ch[0].cnt_x.b.b1 =  value; break;
+        case 0x04000060:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[0].sweep.b.b0 = value;
+        break;
+        case 0x04000061:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[0].sweep.b.b1 = value;
+        break;
+        case 0x04000062:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[0].tone.b.b0 = value;
+        break;
+        case 0x04000063:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[0].tone.b.b1 = value;
+        break;
+        case 0x04000064:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[0].ctrl.b.b0 = value;
+        break;
+        case 0x04000065:
+            if (snd_psg_enb.w & PSG_ENB) {
+                sqr_ch[0].ctrl.b.b1 = value;
 
-        case 0x04000068: snd_ch[1].cnt_l.b.b0 =  value; break;
-        case 0x04000069: snd_ch[1].cnt_l.b.b1 =  value; break;
-        case 0x0400006c: snd_ch[1].cnt_h.b.b0 =  value; break;
-        case 0x0400006d: snd_ch[1].cnt_h.b.b1 =  value; break;
+                if (value & 0x80)
+                    snd_reset_state(0);
+            }
+        break;
 
-        case 0x04000070: snd_ch[2].cnt_l.b.b0 =  value; break;
-        case 0x04000071: snd_ch[2].cnt_l.b.b1 =  value; break;
-        case 0x04000072: snd_ch[2].cnt_h.b.b0 =  value; break;
-        case 0x04000073: snd_ch[2].cnt_h.b.b1 =  value; break;
-        case 0x04000074: snd_ch[2].cnt_x.b.b0 =  value; break;
-        case 0x04000075: snd_ch[2].cnt_x.b.b1 =  value; break;
+        case 0x04000068:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[1].tone.b.b0 = value;
+        break;
+        case 0x04000069:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[1].tone.b.b1 = value;
+        break;
+        case 0x0400006c:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[1].ctrl.b.b0 = value;
+        break;
+        case 0x0400006d:
+            if (snd_psg_enb.w & PSG_ENB) {
+                sqr_ch[1].ctrl.b.b1 = value;
 
-        case 0x04000078: snd_ch[3].cnt_l.b.b0 =  value; break;
-        case 0x04000079: snd_ch[3].cnt_l.b.b1 =  value; break;
-        case 0x0400007c: snd_ch[3].cnt_h.b.b0 =  value; break;
-        case 0x0400007d: snd_ch[3].cnt_h.b.b1 =  value; break;
+                if (value & 0x80)
+                    snd_reset_state(1);
+            }
+        break;
 
-        case 0x04000080: sound_cnt_l.b.b0     =  value; break;
-        case 0x04000081: sound_cnt_l.b.b1     =  value; break;
-        case 0x04000082: sound_cnt_h.b.b0     =  value; break;
-        case 0x04000083: sound_cnt_h.b.b1     =  value; break;
-        case 0x04000084: sound_cnt_x.b.b0     =  value; break;
-        case 0x04000085: sound_cnt_x.b.b1     =  value; break;
-        case 0x04000088: sound_bias.b.b0      =  value; break;
-        case 0x04000089: sound_bias.b.b1      =  value; break;
+        case 0x04000070:
+            if (snd_psg_enb.w & PSG_ENB)
+                wave_ch.wave.b.b0 = value;
+        break;
+        case 0x04000071:
+            if (snd_psg_enb.w & PSG_ENB)
+                wave_ch.wave.b.b1 = value;
+        break;
+        case 0x04000072:
+            if (snd_psg_enb.w & PSG_ENB)
+                wave_ch.volume.b.b0 = value;
+        break;
+        case 0x04000073:
+            if (snd_psg_enb.w & PSG_ENB)
+                wave_ch.volume.b.b1 = value;
+        break;
+        case 0x04000074:
+            if (snd_psg_enb.w & PSG_ENB)
+                wave_ch.ctrl.b.b0 = value;
+        break;
+        case 0x04000075:
+            if (snd_psg_enb.w & PSG_ENB) {
+                wave_ch.ctrl.b.b1 = value;
+
+                if (value & 0x80)
+                    snd_reset_state(2);
+            }
+        break;
+
+        case 0x04000078:
+            if (snd_psg_enb.w & PSG_ENB)
+                noise_ch.env.b.b0 = value;
+        break;
+        case 0x04000079:
+            if (snd_psg_enb.w & PSG_ENB)
+                noise_ch.env.b.b1 = value;
+        break;
+        case 0x0400007c:
+            if (snd_psg_enb.w & PSG_ENB)
+                noise_ch.ctrl.b.b0 = value;
+        break;
+        case 0x0400007d:
+            if (snd_psg_enb.w & PSG_ENB) {
+                noise_ch.ctrl.b.b1 = value;
+
+                if (value & 0x80)
+                    snd_reset_state(3);
+            }
+        break;
+
+        case 0x04000080:
+            if (snd_psg_enb.w & PSG_ENB)
+                snd_psg_vol.b.b0 = value;
+        break;
+        case 0x04000081:
+            if (snd_psg_enb.w & PSG_ENB)
+                snd_psg_vol.b.b1 = value;
+        break;
+        case 0x04000082: snd_pcm_vol.b.b0     =  value; break;
+        case 0x04000083:
+            snd_pcm_vol.b.b1 = value;
+
+            if (value & 0x08) fifo_a_len = 0;
+            if (value & 0x80) fifo_b_len = 0;
+        break;
+        case 0x04000084:
+            snd_psg_enb.b.b0 &=          0xf;
+            snd_psg_enb.b.b0 |= value & ~0xf;
+
+            if (!(value & PSG_ENB)) {
+                sqr_ch[0].sweep.w = 0;
+                sqr_ch[0].tone.w  = 0;
+                sqr_ch[0].ctrl.w  = 0;
+
+                sqr_ch[1].tone.w  = 0;
+                sqr_ch[1].ctrl.w  = 0;
+
+                wave_ch.wave.w    = 0;
+                wave_ch.volume.w  = 0;
+                wave_ch.ctrl.w    = 0;
+
+                noise_ch.env.w    = 0;
+                noise_ch.ctrl.w   = 0;
+
+                snd_psg_vol.w     = 0;
+                snd_psg_enb.w     = 0;
+            }
+        break;
+        case 0x04000085: snd_psg_enb.b.b1     =  value; break;
+        case 0x04000088: snd_bias.b.b0        =  value; break;
+        case 0x04000089: snd_bias.b.b1        =  value; break;
+
+        case 0x04000090:
+        case 0x04000091:
+        case 0x04000092:
+        case 0x04000093:
+        case 0x04000094:
+        case 0x04000095:
+        case 0x04000096:
+        case 0x04000097:
+        case 0x04000098:
+        case 0x04000099:
+        case 0x0400009a:
+        case 0x0400009b:
+        case 0x0400009c:
+        case 0x0400009d:
+        case 0x0400009e:
+        case 0x0400009f: {
+            uint8_t wave_bank = (wave_ch.wave.w >> 2) & 0x10;
+            uint8_t wave_idx  = (wave_bank ^ 0x10) | (address & 0xf);
+
+            wave_ram[wave_idx] = value;
+        }
+        break;
+
+        case 0x040000a0: snd_fifo_a_0         =  value; break;
+        case 0x040000a1: snd_fifo_a_1         =  value; break;
+        case 0x040000a2: snd_fifo_a_2         =  value; break;
+        case 0x040000a3: snd_fifo_a_3         =  value; break;
+
+        case 0x040000a4: snd_fifo_b_0         =  value; break;
+        case 0x040000a5: snd_fifo_b_1         =  value; break;
+        case 0x040000a6: snd_fifo_b_2         =  value; break;
+        case 0x040000a7: snd_fifo_b_3         =  value; break;
 
         case 0x040000b0: dma_ch[0].src.b.b0   =  value; break;
         case 0x040000b1: dma_ch[0].src.b.b1   =  value; break;
@@ -458,7 +642,7 @@ void io_write(uint32_t address, uint8_t value) {
     }
 }
 
-void trigger_irq(uint8_t flag) {
+void trigger_irq(uint16_t flag) {
     int_ack.w |= flag;
 
     int_halt = false;

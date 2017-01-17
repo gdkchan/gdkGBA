@@ -60,18 +60,68 @@ io_reg win_out;
 
 io_reg bld_cnt;
 
+#define SWEEP_DEC  (1 <<  3)
+#define ENV_INC    (1 << 11)
+#define CH_LEN     (1 << 14)
+#define WAVE_64    (1 <<  5)
+#define WAVE_PLAY  (1 <<  7)
+#define NOISE_7    (1 <<  3)
+
 typedef struct {
-    io_reg cnt_l;
-    io_reg cnt_h;
-    io_reg cnt_x;
-} snd_ch_t;
+    io_reg sweep;
+    io_reg tone;
+    io_reg ctrl;
+} snd_sqr_ch_t;
 
-snd_ch_t snd_ch[4];
+typedef struct {
+    io_reg wave;
+    io_reg volume;
+    io_reg ctrl;
+} snd_wave_ch_t;
 
-io_reg sound_cnt_l;
-io_reg sound_cnt_h;
-io_reg sound_cnt_x;
-io_reg sound_bias;
+typedef struct {
+    io_reg env;
+    io_reg ctrl;
+} snd_noise_ch_t;
+
+snd_sqr_ch_t   sqr_ch[2];
+snd_wave_ch_t  wave_ch;
+snd_noise_ch_t noise_ch;
+
+#define CH_SQR1_R   (1 <<  8)
+#define CH_SQR2_R   (1 <<  9)
+#define CH_WAVE_R   (1 << 10)
+#define CH_NOISE_R  (1 << 11)
+#define CH_SQR1_L   (1 << 12)
+#define CH_SQR2_L   (1 << 13)
+#define CH_WAVE_L   (1 << 14)
+#define CH_NOISE_L  (1 << 15)
+#define CH_DMAA_R   (1 <<  8)
+#define CH_DMAA_L   (1 <<  9)
+#define CH_DMAB_R   (1 << 12)
+#define CH_DMAB_L   (1 << 13)
+#define CH_SQR1     (1 <<  0)
+#define CH_SQR2     (1 <<  1)
+#define CH_WAVE     (1 <<  2)
+#define CH_NOISE    (1 <<  3)
+#define PSG_ENB     (1 <<  7)
+
+io_reg snd_psg_vol;
+io_reg snd_pcm_vol;
+io_reg snd_psg_enb;
+io_reg snd_bias;
+
+uint8_t wave_ram[0x20];
+
+int8_t snd_fifo_a_0;
+int8_t snd_fifo_a_1;
+int8_t snd_fifo_a_2;
+int8_t snd_fifo_a_3;
+
+int8_t snd_fifo_b_0;
+int8_t snd_fifo_b_1;
+int8_t snd_fifo_b_2;
+int8_t snd_fifo_b_3;
 
 typedef struct {
     io_reg src;
@@ -127,6 +177,6 @@ uint8_t post_boot;
 uint8_t io_read(uint32_t address);
 void io_write(uint32_t address, uint8_t value);
 
-void trigger_irq(uint8_t flag);
+void trigger_irq(uint16_t flag);
 
 void update_ws();

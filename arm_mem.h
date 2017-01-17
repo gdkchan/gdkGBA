@@ -25,6 +25,9 @@ typedef enum {
 
 void arm_access_bus(uint32_t address, uint8_t size, access_type_e at);
 
+uint8_t arm_readb(uint32_t address);
+uint32_t arm_readh(uint32_t address);
+uint32_t arm_read(uint32_t address);
 uint8_t arm_readb_n(uint32_t address);
 uint32_t arm_readh_n(uint32_t address);
 uint32_t arm_read_n(uint32_t address);
@@ -32,6 +35,9 @@ uint8_t arm_readb_s(uint32_t address);
 uint32_t arm_readh_s(uint32_t address);
 uint32_t arm_read_s(uint32_t address);
 
+void arm_writeb(uint32_t address, uint8_t value);
+void arm_writeh(uint32_t address, uint16_t value);
+void arm_write(uint32_t address, uint32_t value);
 void arm_writeb_n(uint32_t address, uint8_t value);
 void arm_writeh_n(uint32_t address, uint16_t value);
 void arm_write_n(uint32_t address, uint32_t value);

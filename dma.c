@@ -1,10 +1,11 @@
-#include <stdio.h>
-
 #include "arm.h"
 #include "arm_mem.h"
 
 #include "dma.h"
 #include "io.h"
+#include "sound.h"
+
+//TODO: Timing - DMA should take some amount of cycles
 
 void dma_transfer(dma_timing_e timing) {
     uint8_t ch;
@@ -35,29 +36,18 @@ void dma_transfer(dma_timing_e timing) {
             case 1: src_inc = -unit_size; break;
         }
 
-        if (timing == SPECIAL) {
-            dma_count[ch] = 4;
-            dst_inc       = 0;
-        }
-
-        if (dma_src_addr[ch] & dma_dst_addr[ch] & 0x08000000)
-            arm_cycles += 4;
-        else
-            arm_cycles += 2;
-
         while (dma_count[ch]--) {
             if (dma_ch[ch].ctrl.w & DMA_32)
-                arm_write_s(dma_dst_addr[ch],  arm_read_s(dma_src_addr[ch]));
+                arm_write(dma_dst_addr[ch],  arm_read(dma_src_addr[ch]));
             else
-                arm_writeh_s(dma_dst_addr[ch], arm_readh_s(dma_src_addr[ch]));
+                arm_writeh(dma_dst_addr[ch], arm_readh(dma_src_addr[ch]));
 
             dma_dst_addr[ch] += dst_inc;
             dma_src_addr[ch] += src_inc;
         }
 
-        if (dma_ch[ch].ctrl.w & DMA_IRQ) {
+        if (dma_ch[ch].ctrl.w & DMA_IRQ)
             trigger_irq(DMA0_FLAG << ch);
-        }
 
         if (dma_ch[ch].ctrl.w & DMA_REP) {
             dma_count[ch] = dma_ch[ch].count.w;
@@ -71,4 +61,29 @@ void dma_transfer(dma_timing_e timing) {
 
         dma_ch[ch].ctrl.w &= ~DMA_ENB;
     }
+}
+
+void dma_transfer_fifo(uint8_t ch) {
+    if (!(dma_ch[ch].ctrl.w & DMA_ENB) ||
+        ((dma_ch[ch].ctrl.w >> 12) & 3) != SPECIAL)
+        return;
+
+    uint8_t i;
+
+    for (i = 0; i < 4; i++) {
+        arm_write(dma_dst_addr[ch], arm_read(dma_src_addr[ch]));
+
+        if (ch == 1)
+            fifo_a_copy();
+        else
+            fifo_b_copy();
+
+        switch ((dma_ch[ch].ctrl.w >> 7) & 3) {
+            case 0: dma_src_addr[ch] += 4; break;
+            case 1: dma_src_addr[ch] -= 4; break;
+        }
+    }
+
+    if (dma_ch[ch].ctrl.w & DMA_IRQ)
+        trigger_irq(DMA0_FLAG << ch);
 }

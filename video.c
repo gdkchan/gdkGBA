@@ -1,13 +1,10 @@
-#include <stdio.h>
-
 #include "arm.h"
 #include "arm_mem.h"
 
 #include "dma.h"
 #include "io.h"
 #include "sdl.h"
-
-#define CPU_FREQ_HZ  16777216
+#include "sound.h"
 
 #define LINES_VISIBLE  160
 #define LINES_TOTAL    228
@@ -155,7 +152,6 @@ static const uint8_t bg_enb[3] = { 0xf, 0x7, 0xc };
 
 static void render_bg() {
     uint8_t mode = disp_cnt.w & 7;
-    uint8_t enb = (disp_cnt.w >> 8) & bg_enb[mode];
 
     uint32_t surf_addr = v_count.w * 240 * 4;
 
@@ -163,6 +159,8 @@ static void render_bg() {
         case 0:
         case 1:
         case 2: {
+            uint8_t enb = (disp_cnt.w >> 8) & bg_enb[mode];
+
             int8_t prio, bg_idx;
 
             for (prio = 3; prio >= 0; prio--) {
@@ -188,7 +186,7 @@ static void render_bg() {
 
                         int32_t ox = ((int32_t)bg_refxi[bg_idx].w << 4) >> 4;
                         int32_t oy = ((int32_t)bg_refyi[bg_idx].w << 4) >> 4;
- 
+
                         bg_refxi[bg_idx].w += pb;
                         bg_refyi[bg_idx].w += pd;
 
@@ -384,10 +382,10 @@ void run_frame() {
         if (v_count.w == LINES_VISIBLE) {
             bg_refxi[2].w = bg_refxe[2].w;
             bg_refyi[2].w = bg_refye[2].w;
-            
+
             bg_refxi[3].w = bg_refxe[3].w;
             bg_refyi[3].w = bg_refye[3].w;
-            
+
             vblank_start();
             dma_transfer(VBLANK);
         }
@@ -403,6 +401,8 @@ void run_frame() {
         hblank_start();
 
         arm_exec(CYC_LINE_HBLK1);
+
+        sound_clock(CYC_LINE_TOTAL);
     }
 
     SDL_UnlockTexture(texture);

@@ -47,7 +47,7 @@ static void arm_bank_to_regs(int8_t mode) {
             arm_r.r[14] = arm_r.r14_fiq;
         break;
 
-        case ARM_IRQ: 
+        case ARM_IRQ:
             arm_r.r[13] = arm_r.r13_irq;
             arm_r.r[14] = arm_r.r14_irq;
         break;
@@ -100,7 +100,7 @@ static void arm_regs_to_bank(int8_t mode) {
             arm_r.r14_fiq = arm_r.r[14];
         break;
 
-        case ARM_IRQ: 
+        case ARM_IRQ:
             arm_r.r13_irq = arm_r.r[13];
             arm_r.r14_irq = arm_r.r[14];
         break;
@@ -1365,7 +1365,7 @@ static void arm_memio_stm(arm_memio_t op) {
 
             if (first) {
                 arm_r.r[op.rn] += op.disp;
-                
+
                 first = false;
             }
 
@@ -3167,7 +3167,8 @@ static void arm_step() {
 
 void arm_exec(uint32_t target_cycles) {
     if (int_halt) {
-        tick_timers(target_cycles);
+        timers_clock(target_cycles);
+
         return;
     }
 
@@ -3182,9 +3183,9 @@ void arm_exec(uint32_t target_cycles) {
         else
             arm_step();
 
-        if (tmr_enb) tick_timers(arm_cycles - cycles);
-
         if (int_halt) arm_cycles = target_cycles;
+
+        if (tmr_enb) timers_clock(arm_cycles - cycles);
     }
 
     arm_cycles -= target_cycles;
