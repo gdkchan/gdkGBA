@@ -30,6 +30,8 @@ uint8_t wave_samples;
 
 void wave_reset();
 
+void sound_buffer_wrap();
+
 void sound_mix(void *data, uint8_t *stream, int32_t len);
 void sound_clock(uint32_t cycles);
 

@@ -1320,6 +1320,13 @@ typedef enum {
     DWORD = 8
 } arm_size_e;
 
+static uint32_t arm_memio_reg_get(uint8_t reg) {
+    if (reg == 15)
+        return arm_r.r[15] + 4;
+    else
+        return arm_r.r[reg];
+}
+
 static void arm_memio_ldm(arm_memio_t op) {
     uint8_t i;
 
@@ -1361,7 +1368,7 @@ static void arm_memio_stm(arm_memio_t op) {
 
     for (i = 0; i < 16; i++) {
         if (op.regs & (1 << i)) {
-            arm_write_s(op.addr, arm_r.r[i]);
+            arm_write_s(op.addr, arm_memio_reg_get(i));
 
             if (first) {
                 arm_r.r[op.rn] += op.disp;
@@ -1460,20 +1467,20 @@ static void arm_memio_ldrd(arm_memio_t op) {
 }
 
 static void arm_memio_str(arm_memio_t op) {
-    arm_write_n(op.addr, arm_r.r[op.rt]);
+    arm_write_n(op.addr, arm_memio_reg_get(op.rt));
 }
 
 static void arm_memio_strb(arm_memio_t op) {
-    arm_writeb_n(op.addr, arm_r.r[op.rt]);
+    arm_writeb_n(op.addr, arm_memio_reg_get(op.rt));
 }
 
 static void arm_memio_strh(arm_memio_t op) {
-    arm_writeh_n(op.addr, arm_r.r[op.rt]);
+    arm_writeh_n(op.addr, arm_memio_reg_get(op.rt));
 }
 
 static void arm_memio_strd(arm_memio_t op) {
-    arm_write_n(op.addr + 0, arm_r.r[op.rt]);
-    arm_write_s(op.addr + 4, arm_r.r[op.rt2]);
+    arm_write_n(op.addr + 0, arm_memio_reg_get(op.rt));
+    arm_write_s(op.addr + 4, arm_memio_reg_get(op.rt2));
 }
 
 static void arm_memio_load_usr(arm_memio_t op, arm_size_e size) {
@@ -1672,7 +1679,7 @@ static arm_memio_t arm_memio_immdh_op() {
     imm |= (arm_op >> 4) & 0xf0;
 
     if (u)
-        disp = imm;
+        disp =  imm;
     else
         disp = -imm;
 
@@ -1701,7 +1708,7 @@ static arm_memio_t arm_memio_regdh_op() {
     int32_t disp;
 
     if (u)
-        disp = arm_r.r[rm];
+        disp =  arm_r.r[rm];
     else
         disp = -arm_r.r[rm];
 
@@ -2528,7 +2535,7 @@ static void t16_push() {
 
     for (i = 0; i < 16; i++) {
         if (regs & (1 << i)) {
-            arm_write_s(addr, arm_r.r[i]);
+            arm_write_s(addr, arm_memio_reg_get(i));
 
             addr += 4;
         }
@@ -3164,6 +3171,8 @@ static void arm_step() {
 
     arm_inc_r15();
 }
+
+bool temp = true;
 
 void arm_exec(uint32_t target_cycles) {
     if (int_halt) {

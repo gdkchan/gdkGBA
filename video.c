@@ -408,4 +408,6 @@ void run_frame() {
     SDL_UnlockTexture(texture);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
+
+    sound_buffer_wrap();
 }
