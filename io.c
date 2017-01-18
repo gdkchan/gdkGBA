@@ -30,6 +30,10 @@ uint8_t io_read(uint32_t address) {
 
         case 0x04000050: return bld_cnt.b.b0;
         case 0x04000051: return bld_cnt.b.b1;
+        case 0x04000052: return bld_alpha.b.b0;
+        case 0x04000053: return bld_alpha.b.b1;
+        case 0x04000054: return bld_bright.b.b0;
+        case 0x04000055: return bld_bright.b.b1;
 
         case 0x04000060: return sqr_ch[0].sweep.b.b0;
         case 0x04000061: return sqr_ch[0].sweep.b.b1;
@@ -336,6 +340,10 @@ void io_write(uint32_t address, uint8_t value) {
 
         case 0x04000050: bld_cnt.b.b0         =  value; break;
         case 0x04000051: bld_cnt.b.b1         =  value; break;
+        case 0x04000052: bld_alpha.b.b0       =  value; break;
+        case 0x04000053: bld_alpha.b.b1       =  value; break;
+        case 0x04000054: bld_bright.b.b0      =  value; break;
+        case 0x04000055: bld_bright.b.b1      =  value; break;
 
         case 0x04000060:
             if (snd_psg_enb.w & PSG_ENB)

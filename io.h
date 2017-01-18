@@ -59,6 +59,8 @@ io_reg win_in;
 io_reg win_out;
 
 io_reg bld_cnt;
+io_reg bld_alpha;
+io_reg bld_bright;
 
 #define SWEEP_DEC  (1 <<  3)
 #define ENV_INC    (1 << 11)
