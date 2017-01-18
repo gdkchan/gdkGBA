@@ -3172,8 +3172,6 @@ static void arm_step() {
     arm_inc_r15();
 }
 
-bool temp = true;
-
 void arm_exec(uint32_t target_cycles) {
     if (int_halt) {
         timers_clock(target_cycles);
