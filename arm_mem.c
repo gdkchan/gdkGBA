@@ -138,19 +138,19 @@ static uint8_t arm_read_(uint32_t address) {
 #define IS_OPEN_BUS(a)  (((a) >> 28) || ((a) >= 0x00004000 && (a) < 0x02000000))
 
 uint8_t arm_readb(uint32_t address) {
-    if (IS_OPEN_BUS(address))
-        return arm_read_(arm_r.r[15]);
-    else
-        return arm_read_(address);
+    uint8_t value = arm_read_(address);
+
+    if (!(address & 0x08000000)) {
+        io_open_bus &= ((address >> 24) == 4);
+
+        if (IS_OPEN_BUS(address) || io_open_bus)
+            value = arm_pipe[1];
+    }
+
+    return value;
 }
 
 uint32_t arm_readh(uint32_t address) {
-    if (address < 0x4000 && arm_r.r[15] >= 0x4000)
-        return bios_op & 0xffff;
-
-    if (IS_OPEN_BUS(address))
-        return arm_pipe[1] & 0xffff;
-
     uint32_t a = address & ~1;
     uint8_t  s = address &  1;
 
@@ -158,16 +158,19 @@ uint32_t arm_readh(uint32_t address) {
         arm_read_(a | 0) << 0 |
         arm_read_(a | 1) << 8;
 
+    if (!(a & 0x08000000)) {
+        io_open_bus &= ((a >> 24) == 4);
+
+        if (a < 0x4000 && arm_r.r[15] >= 0x4000)
+            value = bios_op     & 0xffff;
+        else if (IS_OPEN_BUS(a) || io_open_bus)
+            value = arm_pipe[1] & 0xffff;
+    }
+
     return ROR(value, s << 3);
 }
 
 uint32_t arm_read(uint32_t address) {
-    if (address < 0x4000 && arm_r.r[15] >= 0x4000)
-        return bios_op;
-
-    if (IS_OPEN_BUS(address))
-        return arm_pipe[1];
-
     uint32_t a = address & ~3;
     uint8_t  s = address &  3;
 
@@ -176,6 +179,15 @@ uint32_t arm_read(uint32_t address) {
         arm_read_(a | 1) <<  8 |
         arm_read_(a | 2) << 16 |
         arm_read_(a | 3) << 24;
+
+    if (!(a & 0x08000000)) {
+        io_open_bus &= ((a >> 24) == 4);
+
+        if (a < 0x4000 && arm_r.r[15] >= 0x4000)
+            value = bios_op;
+        else if (IS_OPEN_BUS(a) || io_open_bus)
+            value = arm_pipe[1];
+    }
 
     return ROR(value, s << 3);
 }

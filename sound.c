@@ -6,6 +6,9 @@
 #define PSG_MAX   0x7f
 #define PSG_MIN  -0x80
 
+#define SAMP_MAX   0x1ff
+#define SAMP_MIN  -0x200
+
 //How much time a single sample takes (in seconds)
 #define SAMPLE_TIME  (1.0 / (SND_FREQUENCY))
 
@@ -289,8 +292,8 @@ void sound_mix(void *data, uint8_t *stream, int32_t len) {
     uint16_t i;
 
     for (i = 0; i < len; i += 4) {
-        *(int16_t *)(stream + (i | 0)) = snd_buffer[snd_cur_play++ & BUFF_SAMPLES_MSK] << 4;
-        *(int16_t *)(stream + (i | 2)) = snd_buffer[snd_cur_play++ & BUFF_SAMPLES_MSK] << 4;
+        *(int16_t *)(stream + (i | 0)) = snd_buffer[snd_cur_play++ & BUFF_SAMPLES_MSK] << 6;
+        *(int16_t *)(stream + (i | 2)) = snd_buffer[snd_cur_play++ & BUFF_SAMPLES_MSK] << 6;
     }
 
     //Avoid desync between the Play cursor and the Write cursor
@@ -349,6 +352,13 @@ uint32_t snd_cycles = 0;
 static int32_t psg_vol_lut[8] = { 0x000, 0x024, 0x049, 0x06d, 0x092, 0x0b6, 0x0db, 0x100 };
 static int32_t psg_rsh_lut[4] = { 0xa, 0x9, 0x8, 0x7 };
 
+static int16_t clip(int32_t value) {
+    if (value > SAMP_MAX) value = SAMP_MAX;
+    if (value < SAMP_MIN) value = SAMP_MIN;
+
+    return value;
+}
+
 void sound_clock(uint32_t cycles) {
     snd_cycles += cycles;
 
@@ -358,11 +368,11 @@ void sound_clock(uint32_t cycles) {
     int16_t samp_ch4 = (fifo_a_samp << 1) >> !(snd_pcm_vol.w & 4);
     int16_t samp_ch5 = (fifo_b_samp << 1) >> !(snd_pcm_vol.w & 8);
 
-    if (snd_pcm_vol.w & CH_DMAA_L) samp_pcm_l += samp_ch4;
-    if (snd_pcm_vol.w & CH_DMAB_L) samp_pcm_l += samp_ch5;
+    if (snd_pcm_vol.w & CH_DMAA_L) samp_pcm_l = clip(samp_pcm_l + samp_ch4);
+    if (snd_pcm_vol.w & CH_DMAB_L) samp_pcm_l = clip(samp_pcm_l + samp_ch5);
 
-    if (snd_pcm_vol.w & CH_DMAA_R) samp_pcm_r += samp_ch4;
-    if (snd_pcm_vol.w & CH_DMAB_R) samp_pcm_r += samp_ch5;
+    if (snd_pcm_vol.w & CH_DMAA_R) samp_pcm_r = clip(samp_pcm_r + samp_ch4);
+    if (snd_pcm_vol.w & CH_DMAB_R) samp_pcm_r = clip(samp_pcm_r + samp_ch5);
 
     while (snd_cycles >= SAMP_CYCLES) {
         int16_t samp_ch0 = square_sample(0);
@@ -373,15 +383,15 @@ void sound_clock(uint32_t cycles) {
         int32_t samp_psg_l = 0;
         int32_t samp_psg_r = 0;
 
-        if (snd_psg_vol.w & CH_SQR1_L)  samp_psg_l += samp_ch0;
-        if (snd_psg_vol.w & CH_SQR2_L)  samp_psg_l += samp_ch1;
-        if (snd_psg_vol.w & CH_WAVE_L)  samp_psg_l += samp_ch2;
-        if (snd_psg_vol.w & CH_NOISE_L) samp_psg_l += samp_ch3;
+        if (snd_psg_vol.w & CH_SQR1_L)  samp_psg_l = clip(samp_psg_l + samp_ch0);
+        if (snd_psg_vol.w & CH_SQR2_L)  samp_psg_l = clip(samp_psg_l + samp_ch1);
+        if (snd_psg_vol.w & CH_WAVE_L)  samp_psg_l = clip(samp_psg_l + samp_ch2);
+        if (snd_psg_vol.w & CH_NOISE_L) samp_psg_l = clip(samp_psg_l + samp_ch3);
 
-        if (snd_psg_vol.w & CH_SQR1_R)  samp_psg_r += samp_ch0;
-        if (snd_psg_vol.w & CH_SQR2_R)  samp_psg_r += samp_ch1;
-        if (snd_psg_vol.w & CH_WAVE_R)  samp_psg_r += samp_ch2;
-        if (snd_psg_vol.w & CH_NOISE_R) samp_psg_r += samp_ch3;
+        if (snd_psg_vol.w & CH_SQR1_R)  samp_psg_r = clip(samp_psg_r + samp_ch0);
+        if (snd_psg_vol.w & CH_SQR2_R)  samp_psg_r = clip(samp_psg_r + samp_ch1);
+        if (snd_psg_vol.w & CH_WAVE_R)  samp_psg_r = clip(samp_psg_r + samp_ch2);
+        if (snd_psg_vol.w & CH_NOISE_R) samp_psg_r = clip(samp_psg_r + samp_ch3);
 
         samp_psg_l  *= psg_vol_lut[(snd_psg_vol.w >> 4) & 7];
         samp_psg_r  *= psg_vol_lut[(snd_psg_vol.w >> 0) & 7];
@@ -389,8 +399,8 @@ void sound_clock(uint32_t cycles) {
         samp_psg_l >>= psg_rsh_lut[(snd_pcm_vol.w >> 0) & 3];
         samp_psg_r >>= psg_rsh_lut[(snd_pcm_vol.w >> 0) & 3];
 
-        snd_buffer[snd_cur_write++ & BUFF_SAMPLES_MSK] = samp_psg_l + samp_pcm_l;
-        snd_buffer[snd_cur_write++ & BUFF_SAMPLES_MSK] = samp_psg_r + samp_pcm_r;
+        snd_buffer[snd_cur_write++ & BUFF_SAMPLES_MSK] = clip(samp_psg_l + samp_pcm_l);
+        snd_buffer[snd_cur_write++ & BUFF_SAMPLES_MSK] = clip(samp_psg_r + samp_pcm_r);
 
         snd_cycles -= SAMP_CYCLES;
     }

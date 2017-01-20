@@ -6,67 +6,83 @@
 #include "timer.h"
 
 uint8_t io_read(uint32_t address) {
+    io_open_bus = false;
+
     switch (address) {
-        case 0x04000000: return disp_cnt.b.b0;
-        case 0x04000001: return disp_cnt.b.b1;
-        case 0x04000004: return disp_stat.b.b0;
-        case 0x04000005: return disp_stat.b.b1;
-        case 0x04000006: return v_count.b.b0;
-        case 0x04000007: return v_count.b.b1;
+        case 0x04000000: return disp_cnt.b.b0        & 0xff;
+        case 0x04000001: return disp_cnt.b.b1        & 0xff;
+        case 0x04000002: return green_inv.b.b0       & 0x01;
+        case 0x04000003: return green_inv.b.b1       & 0x00;
+        case 0x04000004: return disp_stat.b.b0       & 0xff;
+        case 0x04000005: return disp_stat.b.b1       & 0xff;
+        case 0x04000006: return v_count.b.b0         & 0xff;
+        case 0x04000007: return v_count.b.b1         & 0x00;
 
-        case 0x04000008: return bg[0].ctrl.b.b0;
-        case 0x04000009: return bg[0].ctrl.b.b1;
-        case 0x0400000a: return bg[1].ctrl.b.b0;
-        case 0x0400000b: return bg[1].ctrl.b.b1;
-        case 0x0400000c: return bg[2].ctrl.b.b0;
-        case 0x0400000d: return bg[2].ctrl.b.b1;
-        case 0x0400000e: return bg[3].ctrl.b.b0;
-        case 0x0400000f: return bg[3].ctrl.b.b1;
+        case 0x04000008: return bg[0].ctrl.b.b0      & 0xff;
+        case 0x04000009: return bg[0].ctrl.b.b1      & 0xdf;
+        case 0x0400000a: return bg[1].ctrl.b.b0      & 0xff;
+        case 0x0400000b: return bg[1].ctrl.b.b1      & 0xdf;
+        case 0x0400000c: return bg[2].ctrl.b.b0      & 0xff;
+        case 0x0400000d: return bg[2].ctrl.b.b1      & 0xff;
+        case 0x0400000e: return bg[3].ctrl.b.b0      & 0xff;
+        case 0x0400000f: return bg[3].ctrl.b.b1      & 0xff;
 
-        case 0x04000048: return win_in.b.b0;
-        case 0x04000049: return win_in.b.b1;
-        case 0x0400004a: return win_out.b.b0;
-        case 0x0400004b: return win_out.b.b1;
+        case 0x04000048: return win_in.b.b0          & 0x3f;
+        case 0x04000049: return win_in.b.b1          & 0x3f;
+        case 0x0400004a: return win_out.b.b0         & 0x3f;
+        case 0x0400004b: return win_out.b.b1         & 0x3f;
 
-        case 0x04000050: return bld_cnt.b.b0;
-        case 0x04000051: return bld_cnt.b.b1;
-        case 0x04000052: return bld_alpha.b.b0;
-        case 0x04000053: return bld_alpha.b.b1;
-        case 0x04000054: return bld_bright.b.b0;
-        case 0x04000055: return bld_bright.b.b1;
+        case 0x04000050: return bld_cnt.b.b0         & 0xff;
+        case 0x04000051: return bld_cnt.b.b1         & 0x3f;
+        case 0x04000052: return bld_alpha.b.b0       & 0x1f;
+        case 0x04000053: return bld_alpha.b.b1       & 0x1f;
 
-        case 0x04000060: return sqr_ch[0].sweep.b.b0;
-        case 0x04000061: return sqr_ch[0].sweep.b.b1;
-        case 0x04000062: return sqr_ch[0].tone.b.b0;
-        case 0x04000063: return sqr_ch[0].tone.b.b1;
-        case 0x04000064: return sqr_ch[0].ctrl.b.b0;
-        case 0x04000065: return sqr_ch[0].ctrl.b.b1;
+        case 0x04000060: return sqr_ch[0].sweep.b.b0 & 0x7f;
+        case 0x04000061: return sqr_ch[0].sweep.b.b1 & 0x00;
+        case 0x04000062: return sqr_ch[0].tone.b.b0  & 0xc0;
+        case 0x04000063: return sqr_ch[0].tone.b.b1  & 0xff;
+        case 0x04000064: return sqr_ch[0].ctrl.b.b0  & 0x00;
+        case 0x04000065: return sqr_ch[0].ctrl.b.b1  & 0x40;
+        case 0x04000066: return sqr_ch[0].ctrl.b.b2  & 0x00;
+        case 0x04000067: return sqr_ch[0].ctrl.b.b3  & 0x00;
 
-        case 0x04000068: return sqr_ch[1].tone.b.b0;
-        case 0x04000069: return sqr_ch[1].tone.b.b1;
-        case 0x0400006c: return sqr_ch[1].ctrl.b.b0;
-        case 0x0400006d: return sqr_ch[1].ctrl.b.b1;
+        case 0x04000068: return sqr_ch[1].tone.b.b0  & 0xc0;
+        case 0x04000069: return sqr_ch[1].tone.b.b1  & 0xff;
+        case 0x0400006c: return sqr_ch[1].ctrl.b.b0  & 0x00;
+        case 0x0400006d: return sqr_ch[1].ctrl.b.b1  & 0x40;
+        case 0x0400006e: return sqr_ch[1].ctrl.b.b2  & 0x00;
+        case 0x0400006f: return sqr_ch[1].ctrl.b.b3  & 0x00;
 
-        case 0x04000070: return wave_ch.wave.b.b0;
-        case 0x04000071: return wave_ch.wave.b.b1;
-        case 0x04000072: return wave_ch.volume.b.b0;
-        case 0x04000073: return wave_ch.volume.b.b1;
-        case 0x04000074: return wave_ch.ctrl.b.b0;
-        case 0x04000075: return wave_ch.ctrl.b.b1;
+        case 0x04000070: return wave_ch.wave.b.b0    & 0xe0;
+        case 0x04000071: return wave_ch.wave.b.b1    & 0x00;
+        case 0x04000072: return wave_ch.volume.b.b0  & 0x00;
+        case 0x04000073: return wave_ch.volume.b.b1  & 0xe0;
+        case 0x04000074: return wave_ch.ctrl.b.b0    & 0x00;
+        case 0x04000075: return wave_ch.ctrl.b.b1    & 0x40;
+        case 0x04000076: return wave_ch.ctrl.b.b2    & 0x00;
+        case 0x04000077: return wave_ch.ctrl.b.b3    & 0x00;
 
-        case 0x04000078: return noise_ch.env.b.b0;
-        case 0x04000079: return noise_ch.env.b.b1;
-        case 0x0400007c: return noise_ch.ctrl.b.b0;
-        case 0x0400007d: return noise_ch.ctrl.b.b1;
+        case 0x04000078: return noise_ch.env.b.b0    & 0x00;
+        case 0x04000079: return noise_ch.env.b.b1    & 0xff;
+        case 0x0400007a: return noise_ch.env.b.b2    & 0x00;
+        case 0x0400007b: return noise_ch.env.b.b3    & 0x00;
+        case 0x0400007c: return noise_ch.ctrl.b.b0   & 0xff;
+        case 0x0400007d: return noise_ch.ctrl.b.b1   & 0x40;
+        case 0x0400007e: return noise_ch.ctrl.b.b2   & 0x00;
+        case 0x0400007f: return noise_ch.ctrl.b.b3   & 0x00;
 
-        case 0x04000080: return snd_psg_vol.b.b0;
-        case 0x04000081: return snd_psg_vol.b.b1;
-        case 0x04000082: return snd_pcm_vol.b.b0;
-        case 0x04000083: return snd_pcm_vol.b.b1;
-        case 0x04000084: return snd_psg_enb.b.b0;
-        case 0x04000085: return snd_psg_enb.b.b1;
-        case 0x04000088: return snd_bias.b.b0;
-        case 0x04000089: return snd_bias.b.b1;
+        case 0x04000080: return snd_psg_vol.b.b0     & 0x77;
+        case 0x04000081: return snd_psg_vol.b.b1     & 0xff;
+        case 0x04000082: return snd_pcm_vol.b.b0     & 0x0f;
+        case 0x04000083: return snd_pcm_vol.b.b1     & 0x77;
+        case 0x04000084: return snd_psg_enb.b.b0     & 0x8f;
+        case 0x04000085: return snd_psg_enb.b.b1     & 0x00;
+        case 0x04000086: return snd_psg_enb.b.b2     & 0x00;
+        case 0x04000087: return snd_psg_enb.b.b3     & 0x00;
+        case 0x04000088: return snd_bias.b.b0        & 0xff;
+        case 0x04000089: return snd_bias.b.b1        & 0xc3;
+        case 0x0400008a: return snd_bias.b.b2        & 0x00;
+        case 0x0400008b: return snd_bias.b.b3        & 0x00;
 
         case 0x04000090:
         case 0x04000091:
@@ -90,66 +106,77 @@ uint8_t io_read(uint32_t address) {
             return wave_ram[wave_idx];
         }
 
-        case 0x040000ba: return dma_ch[0].ctrl.b.b0;
-        case 0x040000bb: return dma_ch[0].ctrl.b.b1;
+        case 0x040000b8: return dma_ch[0].count.b.b0 & 0x00;
+        case 0x040000b9: return dma_ch[0].count.b.b1 & 0x00;
+        case 0x040000ba: return dma_ch[0].ctrl.b.b0  & 0xe0;
+        case 0x040000bb: return dma_ch[0].ctrl.b.b1  & 0xf7;
 
-        case 0x040000c6: return dma_ch[1].ctrl.b.b0;
-        case 0x040000c7: return dma_ch[1].ctrl.b.b1;
+        case 0x040000c4: return dma_ch[1].count.b.b0 & 0x00;
+        case 0x040000c5: return dma_ch[1].count.b.b1 & 0x00;
+        case 0x040000c6: return dma_ch[1].ctrl.b.b0  & 0xe0;
+        case 0x040000c7: return dma_ch[1].ctrl.b.b1  & 0xf7;
 
-        case 0x040000d2: return dma_ch[2].ctrl.b.b0;
-        case 0x040000d3: return dma_ch[2].ctrl.b.b1;
+        case 0x040000d0: return dma_ch[2].count.b.b0 & 0x00;
+        case 0x040000d1: return dma_ch[2].count.b.b1 & 0x00;
+        case 0x040000d2: return dma_ch[2].ctrl.b.b0  & 0xe0;
+        case 0x040000d3: return dma_ch[2].ctrl.b.b1  & 0xf7;
 
-        case 0x040000de: return dma_ch[3].ctrl.b.b0;
-        case 0x040000df: return dma_ch[3].ctrl.b.b1;
+        case 0x040000dc: return dma_ch[3].count.b.b0 & 0x00;
+        case 0x040000dd: return dma_ch[3].count.b.b1 & 0x00;
+        case 0x040000de: return dma_ch[3].ctrl.b.b0  & 0xe0;
+        case 0x040000df: return dma_ch[3].ctrl.b.b1  & 0xff;
 
-        case 0x04000100: return tmr[0].count.b.b0;
-        case 0x04000101: return tmr[0].count.b.b1;
-        case 0x04000102: return tmr[0].ctrl.b.b0;
-        case 0x04000103: return tmr[0].ctrl.b.b1;
+        case 0x04000100: return tmr[0].count.b.b0    & 0xff;
+        case 0x04000101: return tmr[0].count.b.b1    & 0xff;
+        case 0x04000102: return tmr[0].ctrl.b.b0     & 0xc7;
+        case 0x04000103: return tmr[0].ctrl.b.b1     & 0x00;
 
-        case 0x04000104: return tmr[1].count.b.b0;
-        case 0x04000105: return tmr[1].count.b.b1;
-        case 0x04000106: return tmr[1].ctrl.b.b0;
-        case 0x04000107: return tmr[1].ctrl.b.b1;
+        case 0x04000104: return tmr[1].count.b.b0    & 0xff;
+        case 0x04000105: return tmr[1].count.b.b1    & 0xff;
+        case 0x04000106: return tmr[1].ctrl.b.b0     & 0xc7;
+        case 0x04000107: return tmr[1].ctrl.b.b1     & 0x00;
 
-        case 0x04000108: return tmr[2].count.b.b0;
-        case 0x04000109: return tmr[2].count.b.b1;
-        case 0x0400010a: return tmr[2].ctrl.b.b0;
-        case 0x0400010b: return tmr[2].ctrl.b.b1;
+        case 0x04000108: return tmr[2].count.b.b0    & 0xff;
+        case 0x04000109: return tmr[2].count.b.b1    & 0xff;
+        case 0x0400010a: return tmr[2].ctrl.b.b0     & 0xc7;
+        case 0x0400010b: return tmr[2].ctrl.b.b1     & 0x00;
 
-        case 0x0400010c: return tmr[3].count.b.b0;
-        case 0x0400010d: return tmr[3].count.b.b1;
-        case 0x0400010e: return tmr[3].ctrl.b.b0;
-        case 0x0400010f: return tmr[3].ctrl.b.b1;
+        case 0x0400010c: return tmr[3].count.b.b0    & 0xff;
+        case 0x0400010d: return tmr[3].count.b.b1    & 0xff;
+        case 0x0400010e: return tmr[3].ctrl.b.b0     & 0xc7;
+        case 0x0400010f: return tmr[3].ctrl.b.b1     & 0x00;
 
-        case 0x04000120: return sio_data32.b.b0;
-        case 0x04000121: return sio_data32.b.b1;
-        case 0x04000122: return sio_data32.b.b2;
-        case 0x04000123: return sio_data32.b.b3;
-        case 0x04000128: return sio_cnt.b.b0;
-        case 0x04000129: return sio_cnt.b.b1;
-        case 0x0400012a: return sio_data8.b.b0;
-        case 0x04000134: return r_cnt.b.b0;
-        case 0x04000135: return r_cnt.b.b1;
+        case 0x04000120: return sio_data32.b.b0      & 0xff;
+        case 0x04000121: return sio_data32.b.b1      & 0xff;
+        case 0x04000122: return sio_data32.b.b2      & 0xff;
+        case 0x04000123: return sio_data32.b.b3      & 0xff;
+        case 0x04000128: return sio_cnt.b.b0         & 0xff;
+        case 0x04000129: return sio_cnt.b.b1         & 0xff;
+        case 0x0400012a: return sio_data8.b.b0       & 0xff;
+        case 0x04000134: return r_cnt.b.b0           & 0xff;
+        case 0x04000135: return r_cnt.b.b1           & 0xff;
 
-        case 0x04000130: return key_input.b.b0;
-        case 0x04000131: return key_input.b.b1;
+        case 0x04000130: return key_input.b.b0       & 0xff;
+        case 0x04000131: return key_input.b.b1       & 0xff;
 
-        case 0x04000200: return int_enb.b.b0;
-        case 0x04000201: return int_enb.b.b1;
-        case 0x04000202: return int_ack.b.b0;
-        case 0x04000203: return int_ack.b.b1;
-        case 0x04000204: return wait_cnt.b.b0;
-        case 0x04000205: return wait_cnt.b.b1;
-        case 0x04000206: return wait_cnt.b.b2;
-        case 0x04000207: return wait_cnt.b.b3;
-        case 0x04000208: return int_enb_m.b.b0;
-        case 0x04000209: return int_enb_m.b.b1;
-        case 0x0400020a: return int_enb_m.b.b2;
-        case 0x0400020b: return int_enb_m.b.b3;
+        case 0x04000200: return int_enb.b.b0         & 0xff;
+        case 0x04000201: return int_enb.b.b1         & 0x3f;
+        case 0x04000202: return int_ack.b.b0         & 0xff;
+        case 0x04000203: return int_ack.b.b1         & 0x3f;
+        case 0x04000204: return wait_cnt.b.b0        & 0xff;
+        case 0x04000205: return wait_cnt.b.b1        & 0xdf;
+        case 0x04000206: return wait_cnt.b.b2        & 0x00;
+        case 0x04000207: return wait_cnt.b.b3        & 0x00;
+        case 0x04000208: return int_enb_m.b.b0       & 0x01;
+        case 0x04000209: return int_enb_m.b.b1       & 0x00;
+        case 0x0400020a: return int_enb_m.b.b2       & 0x00;
+        case 0x0400020b: return int_enb_m.b.b3       & 0x00;
 
-        case 0x04000300: return post_boot;
+        case 0x04000300: return post_boot            & 0x01;
+        case 0x04000301: return int_halt             & 0x00;
     }
+
+    io_open_bus = true;
 
     return 0;
 }
@@ -194,7 +221,7 @@ static void tmr_load(uint8_t idx, uint8_t value) {
     }
 }
 
-static void snd_reset_state(uint8_t ch) {
+static void snd_reset_state(uint8_t ch, bool enb) {
     snd_ch_state[ch].phase       = false;
     snd_ch_state[ch].samples     = 0;
     snd_ch_state[ch].length_time = 0;
@@ -210,13 +237,18 @@ static void snd_reset_state(uint8_t ch) {
             snd_ch_state[ch].lfsr = 0x7fff;
     }
 
-    snd_psg_enb.w |= (1 << ch);
+    if (enb)
+        snd_psg_enb.w |=  (1 << ch);
+    else
+        snd_psg_enb.w &= ~(1 << ch);
 }
 
 void io_write(uint32_t address, uint8_t value) {
     switch (address) {
         case 0x04000000: disp_cnt.b.b0        =  value; break;
         case 0x04000001: disp_cnt.b.b1        =  value; break;
+        case 0x04000002: green_inv.b.b0       =  value; break;
+        case 0x04000003: green_inv.b.b1       =  value; break;
         case 0x04000004:
             disp_stat.b.b0 &=          0x47;
             disp_stat.b.b0 |= value & ~0x47;
@@ -344,6 +376,8 @@ void io_write(uint32_t address, uint8_t value) {
         case 0x04000053: bld_alpha.b.b1       =  value; break;
         case 0x04000054: bld_bright.b.b0      =  value; break;
         case 0x04000055: bld_bright.b.b1      =  value; break;
+        case 0x04000056: bld_bright.b.b2      =  value; break;
+        case 0x04000057: bld_bright.b.b3      =  value; break;
 
         case 0x04000060:
             if (snd_psg_enb.w & PSG_ENB)
@@ -369,9 +403,16 @@ void io_write(uint32_t address, uint8_t value) {
             if (snd_psg_enb.w & PSG_ENB) {
                 sqr_ch[0].ctrl.b.b1 = value;
 
-                if (value & 0x80)
-                    snd_reset_state(0);
+                snd_reset_state(0, value & 0x80);
             }
+        break;
+        case 0x04000066:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[0].ctrl.b.b2 = value;
+        break;
+        case 0x04000067:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[0].ctrl.b.b3 = value;
         break;
 
         case 0x04000068:
@@ -390,9 +431,16 @@ void io_write(uint32_t address, uint8_t value) {
             if (snd_psg_enb.w & PSG_ENB) {
                 sqr_ch[1].ctrl.b.b1 = value;
 
-                if (value & 0x80)
-                    snd_reset_state(1);
+                snd_reset_state(1, value & 0x80);
             }
+        break;
+        case 0x0400006e:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[1].ctrl.b.b2 = value;
+        break;
+        case 0x0400006f:
+            if (snd_psg_enb.w & PSG_ENB)
+                sqr_ch[1].ctrl.b.b3 = value;
         break;
 
         case 0x04000070:
@@ -419,9 +467,16 @@ void io_write(uint32_t address, uint8_t value) {
             if (snd_psg_enb.w & PSG_ENB) {
                 wave_ch.ctrl.b.b1 = value;
 
-                if (value & 0x80)
-                    snd_reset_state(2);
+                snd_reset_state(2, value & 0x80);
             }
+        break;
+        case 0x04000076:
+            if (snd_psg_enb.w & PSG_ENB)
+                wave_ch.ctrl.b.b2 = value;
+        break;
+        case 0x04000077:
+            if (snd_psg_enb.w & PSG_ENB)
+                wave_ch.ctrl.b.b3 = value;
         break;
 
         case 0x04000078:
@@ -432,6 +487,14 @@ void io_write(uint32_t address, uint8_t value) {
             if (snd_psg_enb.w & PSG_ENB)
                 noise_ch.env.b.b1 = value;
         break;
+        case 0x0400007a:
+            if (snd_psg_enb.w & PSG_ENB)
+                noise_ch.env.b.b2 = value;
+        break;
+        case 0x0400007b:
+            if (snd_psg_enb.w & PSG_ENB)
+                noise_ch.env.b.b3 = value;
+        break;
         case 0x0400007c:
             if (snd_psg_enb.w & PSG_ENB)
                 noise_ch.ctrl.b.b0 = value;
@@ -440,9 +503,16 @@ void io_write(uint32_t address, uint8_t value) {
             if (snd_psg_enb.w & PSG_ENB) {
                 noise_ch.ctrl.b.b1 = value;
 
-                if (value & 0x80)
-                    snd_reset_state(3);
+                snd_reset_state(3, value & 0x80);
             }
+        break;
+        case 0x0400007e:
+            if (snd_psg_enb.w & PSG_ENB)
+                noise_ch.ctrl.b.b2 = value;
+        break;
+        case 0x0400007f:
+            if (snd_psg_enb.w & PSG_ENB)
+                noise_ch.ctrl.b.b3 = value;
         break;
 
         case 0x04000080:
@@ -453,7 +523,10 @@ void io_write(uint32_t address, uint8_t value) {
             if (snd_psg_enb.w & PSG_ENB)
                 snd_psg_vol.b.b1 = value;
         break;
-        case 0x04000082: snd_pcm_vol.b.b0     =  value; break;
+        case 0x04000082:
+            //PCM is not affected by the PSG Enable flag
+            snd_pcm_vol.b.b0 = value;
+        break;
         case 0x04000083:
             snd_pcm_vol.b.b1 = value;
 
@@ -484,8 +557,12 @@ void io_write(uint32_t address, uint8_t value) {
             }
         break;
         case 0x04000085: snd_psg_enb.b.b1     =  value; break;
+        case 0x04000086: snd_psg_enb.b.b2     =  value; break;
+        case 0x04000087: snd_psg_enb.b.b3     =  value; break;
         case 0x04000088: snd_bias.b.b0        =  value; break;
         case 0x04000089: snd_bias.b.b1        =  value; break;
+        case 0x0400008a: snd_bias.b.b2        =  value; break;
+        case 0x0400008b: snd_bias.b.b3        =  value; break;
 
         case 0x04000090:
         case 0x04000091:

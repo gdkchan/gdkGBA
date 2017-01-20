@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 typedef union {
     uint32_t w;
 
@@ -33,6 +35,7 @@ typedef union {
 #define VCNT_IRQ  (1 <<  5)
 
 io_reg disp_cnt;
+io_reg green_inv;
 io_reg disp_stat;
 io_reg v_count;
 
@@ -176,7 +179,10 @@ uint8_t ws_s_t16[4];
 
 uint8_t post_boot;
 
+bool io_open_bus;
+
 uint8_t io_read(uint32_t address);
+
 void io_write(uint32_t address, uint8_t value);
 
 void trigger_irq(uint16_t flag);
