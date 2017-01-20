@@ -222,25 +222,24 @@ static void tmr_load(uint8_t idx, uint8_t value) {
 }
 
 static void snd_reset_state(uint8_t ch, bool enb) {
-    snd_ch_state[ch].phase       = false;
-    snd_ch_state[ch].samples     = 0;
-    snd_ch_state[ch].length_time = 0;
-    snd_ch_state[ch].sweep_time  = 0;
-    snd_ch_state[ch].env_time    = 0;
+    if (enb) {
+        snd_ch_state[ch].phase       = false;
+        snd_ch_state[ch].samples     = 0;
+        snd_ch_state[ch].length_time = 0;
+        snd_ch_state[ch].sweep_time  = 0;
+        snd_ch_state[ch].env_time    = 0;
 
-    if (ch == 2) wave_reset();
+        if (ch == 2) wave_reset();
 
-    if (ch == 3) {
-        if (noise_ch.ctrl.w & NOISE_7)
-            snd_ch_state[ch].lfsr = 0x007f;
-        else
-            snd_ch_state[ch].lfsr = 0x7fff;
-    }
+        if (ch == 3) {
+            if (noise_ch.ctrl.w & NOISE_7)
+                snd_ch_state[ch].lfsr = 0x007f;
+            else
+                snd_ch_state[ch].lfsr = 0x7fff;
+        }
 
-    if (enb)
         snd_psg_enb.w |=  (1 << ch);
-    else
-        snd_psg_enb.w &= ~(1 << ch);
+    }
 }
 
 void io_write(uint32_t address, uint8_t value) {
