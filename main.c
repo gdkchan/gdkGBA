@@ -11,13 +11,15 @@
 const int64_t max_rom_sz = 32 * 1024 * 1024;
 
 static uint32_t to_pow2(uint32_t val) {
+    val--;
+
     val |= (val >>  1);
     val |= (val >>  2);
     val |= (val >>  4);
     val |= (val >>  8);
     val |= (val >> 16);
 
-    return val - (val >> 1);
+    return val + 1;
 }
 
 int main(int argc, char* argv[]) {
