@@ -6,10 +6,6 @@
 #include "io.h"
 #include "timer.h"
 
-void (*arm_proc[2][4096])();
-
-void (*thumb_proc[2048])();
-
 /*
  * Utils
  */
@@ -390,6 +386,20 @@ static void arm_interwork() {
 
     arm_r15_align();
     arm_load_pipe();
+}
+
+static void arm_cycles_s_to_n() {
+    if (arm_r.r[15] & 0x08000000) {
+        uint8_t idx = (arm_r.r[15] >> 25) & 3;
+
+        if (arm_in_thumb()) {
+            arm_cycles -= ws_s_t16[idx];
+            arm_cycles += ws_n_t16[idx];
+        } else {
+            arm_cycles -= ws_s_arm[idx];
+            arm_cycles += ws_n_arm[idx];
+        }
+    }
 }
 
 /*
@@ -777,6 +787,8 @@ static arm_shifter_t arm_data_regr(uint8_t rm, uint8_t type, uint8_t rs) {
 
     arm_cycles++;
 
+    arm_cycles_s_to_n();
+
     return out;
 }
 
@@ -971,6 +983,8 @@ static void arm_mpy_inc_cycles(uint64_t rhs, bool u) {
         arm_cycles += 3;
     else
         arm_cycles += 4;
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_mpy_add(arm_mpy_t op) {
@@ -1346,6 +1360,8 @@ static void arm_memio_ldm(arm_memio_t op) {
     }
 
     arm_cycles++;
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_ldm_usr(arm_memio_t op) {
@@ -1379,6 +1395,8 @@ static void arm_memio_stm(arm_memio_t op) {
             op.addr += 4;
         }
     }
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_stm_usr(arm_memio_t op) {
@@ -1398,6 +1416,8 @@ static void arm_memio_ldr(arm_memio_t op) {
     }
 
     arm_cycles++;
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_ldrb(arm_memio_t op) {
@@ -1409,6 +1429,8 @@ static void arm_memio_ldrb(arm_memio_t op) {
     }
 
     arm_cycles++;
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_ldrh(arm_memio_t op) {
@@ -1420,6 +1442,8 @@ static void arm_memio_ldrh(arm_memio_t op) {
     }
 
     arm_cycles++;
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_ldrsb(arm_memio_t op) {
@@ -1436,6 +1460,8 @@ static void arm_memio_ldrsb(arm_memio_t op) {
     }
 
     arm_cycles++;
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_ldrsh(arm_memio_t op) {
@@ -1452,6 +1478,8 @@ static void arm_memio_ldrsh(arm_memio_t op) {
     }
 
     arm_cycles++;
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_ldrd(arm_memio_t op) {
@@ -1464,23 +1492,33 @@ static void arm_memio_ldrd(arm_memio_t op) {
     }
 
     arm_cycles++;
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_str(arm_memio_t op) {
     arm_write_n(op.addr, arm_memio_reg_get(op.rt));
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_strb(arm_memio_t op) {
     arm_writeb_n(op.addr, arm_memio_reg_get(op.rt));
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_strh(arm_memio_t op) {
     arm_writeh_n(op.addr, arm_memio_reg_get(op.rt));
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_strd(arm_memio_t op) {
     arm_write_n(op.addr + 0, arm_memio_reg_get(op.rt));
     arm_write_s(op.addr + 4, arm_memio_reg_get(op.rt2));
+
+    arm_cycles_s_to_n();
 }
 
 static void arm_memio_load_usr(arm_memio_t op, arm_size_e size) {
@@ -1949,8 +1987,6 @@ static void arm_b() {
     imm <<= 8;
     imm >>= 6;
 
-    arm_access_bus(arm_r.r[15], ARM_WORD_SZ, SEQUENTIAL);
-
     arm_r.r[15] += imm;
 
     arm_load_pipe();
@@ -1961,8 +1997,6 @@ static void t16_b_imm11() {
 
     imm <<= 21;
     imm >>= 20;
-
-    arm_access_bus(arm_r.r[15], ARM_HWORD_SZ, SEQUENTIAL);
 
     arm_r.r[15] += imm;
 
@@ -1979,8 +2013,6 @@ static void t16_b_imm8() {
     int8_t cond = (arm_op >> 8) & 0xf;
 
     if (arm_cond(cond)) {
-        arm_access_bus(arm_r.r[15], ARM_HWORD_SZ, SEQUENTIAL);
-
         arm_r.r[15] += imm;
 
         arm_load_pipe();
@@ -2020,8 +2052,6 @@ static void arm_bl() {
     imm <<= 8;
     imm >>= 6;
 
-    arm_access_bus(arm_r.r[15], ARM_WORD_SZ, SEQUENTIAL);
-
     arm_r.r[14] =  arm_r.r[15] - ARM_WORD_SZ;
     arm_r.r[15] = (arm_r.r[15] & ~3) + imm;
 
@@ -2039,8 +2069,6 @@ static void arm_blx_imm() {
 
     arm_flag_set(ARM_T, true);
 
-    arm_access_bus(arm_r.r[15], ARM_WORD_SZ, SEQUENTIAL);
-
     arm_r.r[14]  = arm_r.r[15] - ARM_WORD_SZ;
     arm_r.r[15] += imm;
 
@@ -2050,8 +2078,6 @@ static void arm_blx_imm() {
 static void arm_blx_reg() {
     uint8_t rm = arm_op & 0xf;
 
-    arm_access_bus(arm_r.r[15], ARM_WORD_SZ, SEQUENTIAL);
-
     arm_r.r[14] = arm_r.r[15] - ARM_WORD_SZ;
     arm_r.r[15] = arm_r.r[rm];
 
@@ -2060,8 +2086,6 @@ static void arm_blx_reg() {
 
 static void t16_blx() {
     uint8_t rm = (arm_op >> 3) & 0xf;
-
-    arm_access_bus(arm_r.r[15], ARM_HWORD_SZ, SEQUENTIAL);
 
     arm_r.r[14] = (arm_r.r[15] - ARM_HWORD_SZ) | 1;
     arm_r.r[15] =  arm_r.r[rm];
@@ -2084,8 +2108,6 @@ static void t16_blx_lrimm() {
 
     imm += (arm_op & 0x7ff) << 1;
 
-    arm_access_bus(arm_r.r[15], ARM_HWORD_SZ, SEQUENTIAL);
-
     arm_r.r[14] = (arm_r.r[15] - ARM_HWORD_SZ) | 1;
     arm_r.r[15] = imm & ~1;
 }
@@ -2104,8 +2126,6 @@ static void t16_blx_h3() {
 static void arm_bx() {
     uint8_t rm = arm_op & 0xf;
 
-    arm_access_bus(arm_r.r[15], ARM_WORD_SZ, SEQUENTIAL);
-
     arm_r.r[15] = arm_r.r[rm];
 
     arm_interwork();
@@ -2113,8 +2133,6 @@ static void arm_bx() {
 
 static void t16_bx() {
     uint8_t rm = (arm_op >> 3) & 0xf;
-
-    arm_access_bus(arm_r.r[15], ARM_HWORD_SZ, SEQUENTIAL);
 
     arm_r.r[15] = arm_r.r[rm];
 
@@ -2893,6 +2911,9 @@ static void arm_proc_set(void (**arr)(), void (*proc)(), uint32_t op, uint32_t m
     }
 }
 
+void (*arm_proc[2][4096])();
+void (*thumb_proc[2048])();
+
 static void arm_proc_init() {
     //Format 27:20,7:4
     arm_proc_fill(arm_proc[0], arm_und, 4096);
@@ -3094,17 +3115,16 @@ static void thumb_proc_init() {
 }
 
 void arm_init() {
-    bios  = malloc(0x4000);
-    wram  = malloc(0x40000);
-    iwram = malloc(0x8000);
-    pram  = malloc(0x400);
-    vram  = malloc(0x18000);
-    oam   = malloc(0x400);
-
-    rom   = malloc(0x2000000);
-
-    sram  = malloc(0x10000);
-    flash = malloc(0x20000);
+    bios   = malloc(0x4000);
+    wram   = malloc(0x40000);
+    iwram  = malloc(0x8000);
+    pram   = malloc(0x400);
+    vram   = malloc(0x18000);
+    oam    = malloc(0x400);
+    rom    = malloc(0x2000000);
+    eeprom = malloc(0x2000);
+    sram   = malloc(0x10000);
+    flash  = malloc(0x20000);
 
     arm_proc_init();
     thumb_proc_init();
@@ -3123,9 +3143,8 @@ void arm_uninit() {
     free(pram);
     free(vram);
     free(oam);
-
     free(rom);
-
+    free(eeprom);
     free(sram);
     free(flash);
 }

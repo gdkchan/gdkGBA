@@ -10,6 +10,16 @@
 
 const int64_t max_rom_sz = 32 * 1024 * 1024;
 
+static uint32_t to_pow2(uint32_t val) {
+    val |= (val >>  1);
+    val |= (val >>  2);
+    val |= (val >>  4);
+    val |= (val >>  8);
+    val |= (val >> 16);
+
+    return val - (val >> 1);
+}
+
 int main(int argc, char* argv[]) {
     printf("gdkGBA - Gameboy Advance emulator made by gdkchan\n");
     printf("This is FREE software released into the PUBLIC DOMAIN\n\n");
@@ -50,6 +60,7 @@ int main(int argc, char* argv[]) {
     fseek(image, 0, SEEK_END);
 
     cart_rom_size = ftell(image);
+    cart_rom_mask = to_pow2(cart_rom_size) - 1;
 
     if (cart_rom_size > max_rom_sz) cart_rom_size = max_rom_sz;
 

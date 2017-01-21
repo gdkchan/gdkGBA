@@ -19,7 +19,13 @@ flash_mode_e flash_mode = IDLE;
 
 bool flash_id_mode = false;
 
-bool eeprom_write = false;
+bool eeprom_used = false;
+bool eeprom_read = false;
+
+uint32_t eeprom_addr      = 0;
+uint32_t eeprom_addr_read = 0;
+
+uint8_t eeprom_buff[0x100];
 
 static const uint8_t bus_size_lut[16]  = { 4, 4, 2, 4, 4, 2, 2, 4, 2, 2, 2, 2, 2, 2, 1, 1 };
 
@@ -38,7 +44,7 @@ static void arm_access(uint32_t address, access_type_e at) {
     arm_cycles += cycles;
 }
 
-void arm_access_bus(uint32_t address, uint8_t size, access_type_e at) {
+static void arm_access_bus(uint32_t address, uint8_t size, access_type_e at) {
     uint8_t lut_idx = (address >> 24) & 0xf;
     uint8_t bus_sz = bus_size_lut[lut_idx];
 
@@ -79,16 +85,39 @@ static uint8_t oam_read(uint32_t address) {
 }
 
 static uint8_t rom_read(uint32_t address) {
-    return rom[address & 0x1ffffff];
+    return rom[address & cart_rom_mask];
 }
 
-static uint32_t rom_eep_read(uint32_t address) {
-    if (eeprom_write &&
+static uint8_t rom_eep_read(uint32_t address, uint8_t offset) {
+    if (eeprom_used &&
         ((cart_rom_size >  0x1000000 && (address >>  8) == 0x0dffff) ||
-         (cart_rom_size <= 0x1000000 && (address >> 24) == 0x00000d)))
-        return 1; //Read from EEPROM, this returns 1 (when ready) on Write requests, or (TODO) Data on Read requests
-    else
+         (cart_rom_size <= 0x1000000 && (address >> 24) == 0x00000d))) {
+         if (!offset) {
+             uint8_t mode = eeprom_buff[0] >> 6;
+
+             switch (mode) {
+                 case EEPROM_WRITE: return 1;
+                 case EEPROM_READ: {
+                    uint8_t value = 0;
+
+                    if (eeprom_idx >= 4) {
+                        uint8_t idx = ((eeprom_idx - 4) >> 3) & 7;
+                        uint8_t bit = ((eeprom_idx - 4) >> 0) & 7;
+
+                        value = (eeprom[eeprom_addr_read | idx] >> (bit ^ 7)) & 1;
+                    }
+
+                    eeprom_idx++;
+
+                    return value;
+                 }
+             }
+         }
+    } else {
         return rom_read(address);
+    }
+
+    return 0;
 }
 
 static uint8_t flash_read(uint32_t address) {
@@ -105,7 +134,7 @@ static uint8_t flash_read(uint32_t address) {
     return 0;
 }
 
-static uint8_t arm_read_(uint32_t address) {
+static uint8_t arm_read_(uint32_t address, uint8_t offset) {
     switch (address >> 24) {
         case 0x0: return bios_read(address);
         case 0x2: return wram_read(address);
@@ -125,7 +154,7 @@ static uint8_t arm_read_(uint32_t address) {
 
         case 0xc:
         case 0xd:
-            return rom_eep_read(address);
+            return rom_eep_read(address, offset);
 
         case 0xe:
         case 0xf:
@@ -138,7 +167,7 @@ static uint8_t arm_read_(uint32_t address) {
 #define IS_OPEN_BUS(a)  (((a) >> 28) || ((a) >= 0x00004000 && (a) < 0x02000000))
 
 uint8_t arm_readb(uint32_t address) {
-    uint8_t value = arm_read_(address);
+    uint8_t value = arm_read_(address, 0);
 
     if (!(address & 0x08000000)) {
         io_open_bus &= ((address >> 24) == 4);
@@ -155,8 +184,8 @@ uint32_t arm_readh(uint32_t address) {
     uint8_t  s = address &  1;
 
     uint32_t value =
-        arm_read_(a | 0) << 0 |
-        arm_read_(a | 1) << 8;
+        arm_read_(a | 0, 0) << 0 |
+        arm_read_(a | 1, 1) << 8;
 
     if (!(a & 0x08000000)) {
         io_open_bus &= ((a >> 24) == 4);
@@ -175,10 +204,10 @@ uint32_t arm_read(uint32_t address) {
     uint8_t  s = address &  3;
 
     uint32_t value =
-        arm_read_(a | 0) <<  0 |
-        arm_read_(a | 1) <<  8 |
-        arm_read_(a | 2) << 16 |
-        arm_read_(a | 3) << 24;
+        arm_read_(a | 0, 0) <<  0 |
+        arm_read_(a | 1, 1) <<  8 |
+        arm_read_(a | 2, 2) << 16 |
+        arm_read_(a | 3, 3) << 24;
 
     if (!(a & 0x08000000)) {
         io_open_bus &= ((a >> 24) == 4);
@@ -265,6 +294,59 @@ static void oam_write(uint32_t address, uint8_t value) {
     oam[address & 0x3ff] = value;
 }
 
+static void eeprom_write(uint32_t address, uint8_t offset, uint8_t value) {
+    if (!offset &&
+    ((cart_rom_size >  0x1000000 && (address >>  8) == 0x0dffff) ||
+     (cart_rom_size <= 0x1000000 && (address >> 24) == 0x00000d))) {
+        if (eeprom_idx == 0) {
+            //First write, erase buffer
+            eeprom_read = false;
+
+            uint16_t i;
+
+            for (i = 0; i < 0x100; i++)
+                eeprom_buff[i] = 0;
+        }
+
+        uint8_t idx = (eeprom_idx >> 3) & 0xff;
+        uint8_t bit = (eeprom_idx >> 0) & 0x7;
+
+        eeprom_buff[idx] |= (value & 1) << (bit ^ 7);
+
+        if (++eeprom_idx == dma_ch[3].count.w) {
+            //Last write, process buffer
+            uint8_t mode = eeprom_buff[0] >> 6;
+
+            //Value is only valid if bit 1 is set (2 or 3, READ = 2)
+            if (mode & EEPROM_READ) {
+                bool eep_512b = (eeprom_idx == 2 + 6 + (mode == EEPROM_WRITE ? 64 : 0) + 1);
+
+                if (eep_512b)
+                    eeprom_addr =   eeprom_buff[0] & 0x3f;
+                else
+                    eeprom_addr = ((eeprom_buff[0] & 0x3f) << 8) | eeprom_buff[1];
+
+                eeprom_addr <<= 3;
+
+                if (mode == EEPROM_WRITE) {
+                    //Perform write to actual EEPROM buffer
+                    uint8_t buff_addr = eep_512b ? 1 : 2;
+
+                    uint64_t value = *(uint64_t *)(eeprom_buff + buff_addr);
+
+                    *(uint64_t *)(eeprom + eeprom_addr) = value;
+                } else {
+                    eeprom_addr_read = eeprom_addr;
+                }
+
+                eeprom_idx = 0;
+            }
+        }
+
+        eeprom_used = true;
+    }
+}
+
 static void flash_write(uint32_t address, uint8_t value) {
     if (flash_mode == WRITE) {
         flash[address & 0xffff] = value;
@@ -307,19 +389,18 @@ static void flash_write(uint32_t address, uint8_t value) {
     flash_mode = IDLE;
 }
 
-static void arm_write_(uint32_t address, uint8_t value) {
+static void arm_write_(uint32_t address, uint8_t offset, uint8_t value) {
     switch (address >> 24) {
-        case 0x2: wram_write(address,  value); break;
+        case 0x2: wram_write(address, value); break;
         case 0x3: iwram_write(address, value); break;
-        case 0x4: io_write(address,    value); break;
-        case 0x5: pram_write(address,  value); break;
-        case 0x6: vram_write(address,  value); break;
-        case 0x7: oam_write(address,   value); break;
+        case 0x4: io_write(address, value); break;
+        case 0x5: pram_write(address, value); break;
+        case 0x6: vram_write(address, value); break;
+        case 0x7: oam_write(address, value); break;
 
+        case 0xc:
         case 0xd:
-            eeprom_write = true;
-            //TODO
-        break;
+            eeprom_write(address, offset, value); break;
 
         case 0xe:
         case 0xf:
@@ -333,27 +414,27 @@ void arm_writeb(uint32_t address, uint8_t value) {
     if (ah == 7) return; //OAM doesn't supposrt 8 bits writes
 
     if (ah > 4 && ah < 8) {
-        arm_write_(address + 0, value);
-        arm_write_(address + 1, value);
+        arm_write_(address + 0, 0, value);
+        arm_write_(address + 1, 1, value);
     } else {
-        arm_write_(address, value);
+        arm_write_(address, 0, value);
     }
 }
 
 void arm_writeh(uint32_t address, uint16_t value) {
     uint32_t a = address & ~1;
 
-    arm_write_(a | 0, (uint8_t)(value >> 0));
-    arm_write_(a | 1, (uint8_t)(value >> 8));
+    arm_write_(a | 0, 0, (uint8_t)(value >> 0));
+    arm_write_(a | 1, 1, (uint8_t)(value >> 8));
 }
 
 void arm_write(uint32_t address, uint32_t value) {
     uint32_t a = address & ~3;
 
-    arm_write_(a | 0, (uint8_t)(value >>  0));
-    arm_write_(a | 1, (uint8_t)(value >>  8));
-    arm_write_(a | 2, (uint8_t)(value >> 16));
-    arm_write_(a | 3, (uint8_t)(value >> 24));
+    arm_write_(a | 0, 0, (uint8_t)(value >>  0));
+    arm_write_(a | 1, 1, (uint8_t)(value >>  8));
+    arm_write_(a | 2, 2, (uint8_t)(value >> 16));
+    arm_write_(a | 3, 3, (uint8_t)(value >> 24));
 }
 
 void arm_writeb_n(uint32_t address, uint8_t value) {

@@ -157,7 +157,7 @@ uint8_t io_read(uint32_t address) {
         case 0x04000135: return r_cnt.b.b1           & 0xff;
 
         case 0x04000130: return key_input.b.b0       & 0xff;
-        case 0x04000131: return key_input.b.b1       & 0xff;
+        case 0x04000131: return key_input.b.b1       & 0x3f;
 
         case 0x04000200: return int_enb.b.b0         & 0xff;
         case 0x04000201: return int_enb.b.b1         & 0x3f;

@@ -1,1 +1,1 @@
-gcc -Wall -Ofast -o gdkGBA *.c -lmingw32 -mwindows -mconsole -lSDL2main -lSDL2
+mingw32-make CLIBS="-lmingw32 -mwindows -mconsole -lSDL2main"

@@ -15,6 +15,9 @@ void dma_transfer(dma_timing_e timing) {
             ((dma_ch[ch].ctrl.w >> 12) & 3) != timing)
             continue;
 
+        if (ch == 3)
+            eeprom_idx = 0;
+
         int8_t unit_size = (dma_ch[ch].ctrl.w & DMA_32) ? 4 : 2;
 
         bool dst_reload = false;
@@ -60,6 +63,7 @@ void dma_transfer(dma_timing_e timing) {
         }
 
         dma_ch[ch].ctrl.w &= ~DMA_ENB;
+
     }
 }
 
