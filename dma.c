@@ -63,7 +63,6 @@ void dma_transfer(dma_timing_e timing) {
         }
 
         dma_ch[ch].ctrl.w &= ~DMA_ENB;
-
     }
 }
 

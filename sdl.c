@@ -5,7 +5,7 @@ void sdl_init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 
     window   = SDL_CreateWindow("gdkGBA", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 480, 320, 0);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     texture  = SDL_CreateTexture(
         renderer,
         SDL_PIXELFORMAT_BGRA8888,
