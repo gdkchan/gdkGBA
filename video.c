@@ -18,6 +18,121 @@ void *screen;
 static const uint8_t x_tiles_lut[16] = { 1, 2, 4, 8, 2, 4, 4, 8, 1, 1, 2, 4, 0, 0, 0, 0 };
 static const uint8_t y_tiles_lut[16] = { 1, 2, 4, 8, 1, 1, 2, 4, 2, 4, 4, 8, 0, 0, 0, 0 };
 
+static bool win_show_x(uint8_t layer, uint8_t x) {
+	uint8_t mask = 1 << layer;
+
+	bool win0_in = win_in.b.b0 & mask;
+	bool win1_in = win_in.b.b1 & mask;
+
+	bool win_out_ = win_out.b.b0 & mask;
+
+	bool inside_win0 = false;
+	bool inside_win1 = false;
+
+	if (disp_cnt.w & WIN0_ENB) {
+		inside_win0 = x >= win0_h.b.b1 &&
+					  x <  win0_h.b.b0;
+	}
+
+	if (disp_cnt.w & WIN1_ENB) {
+		inside_win1 = x >= win1_h.b.b1 &&
+					  x <  win1_h.b.b0;
+	}
+
+	if (win0_in && inside_win0) return true;
+	if (win1_in && inside_win1) return true;
+
+	if (win_out_ && !(inside_win0 || inside_win1)) return true;
+
+	return false;
+}
+
+static bool win_show_y(uint8_t layer, uint8_t y) {
+	uint8_t mask = 1 << layer;
+
+	bool win0_in = win_in.b.b0 & mask;
+	bool win1_in = win_in.b.b1 & mask;
+
+	bool win_out_ = win_out.b.b0 & mask;
+
+	bool inside_win0 = false;
+	bool inside_win1 = false;
+
+	if (disp_cnt.w & WIN0_ENB) {
+		inside_win0 = y >= win0_v.b.b1 &&
+					  y <  win0_v.b.b0;
+	}
+
+	if (disp_cnt.w & WIN1_ENB) {
+		inside_win1 = y >= win1_v.b.b1 &&
+					  y <  win1_v.b.b0;
+	}
+
+	if (win0_in && inside_win0) return true;
+	if (win1_in && inside_win1) return true;
+
+	if (win_out_ && !(inside_win0 || inside_win1)) return true;
+
+	return false;
+}
+
+#define MIN(x, y)  ((x) > (y) ? (y) : (x))
+
+static uint32_t get_blended_color(uint32_t new_col, uint32_t old_col) {
+	uint8_t eff = (bld_cnt.w >> 6) & 3;
+
+	uint8_t nr = (uint8_t)(new_col >>  8);
+	uint8_t ng = (uint8_t)(new_col >> 16);
+	uint8_t nb = (uint8_t)(new_col >> 24);
+
+	uint32_t mr, mg, mb;
+
+	switch (eff) {
+		case 1: {
+			uint32_t eva = MIN((bld_alpha.w >> 0) & 0x1f, 16);
+			uint32_t evb = MIN((bld_alpha.w >> 8) & 0x1f, 16);
+
+			uint8_t or = (uint8_t)(old_col >>  8);
+			uint8_t og = (uint8_t)(old_col >> 16);
+			uint8_t ob = (uint8_t)(old_col >> 24);
+
+			float evaf = eva * (1.0f / 16.0f);
+			float evbf = evb * (1.0f / 16.0f);
+
+			mr = (uint32_t)(MIN(nr * evaf + or * evbf, 0xff));
+			mg = (uint32_t)(MIN(ng * evaf + og * evbf, 0xff));
+			mb = (uint32_t)(MIN(nb * evaf + ob * evbf, 0xff));
+		}
+		break;
+
+		case 2: {
+			uint32_t evy = MIN(bld_bright.w & 0x1f, 16);
+
+			float evyf = evy * (1.0f / 16.0f);
+
+			mr = (uint32_t)(nr + (0xff - nr) * evyf);
+			mg = (uint32_t)(ng + (0xff - ng) * evyf);
+			mb = (uint32_t)(nb + (0xff - nb) * evyf);
+		}
+		break;
+
+		case 3: {
+			uint32_t evy = MIN(bld_bright.w & 0x1f, 16);
+
+			float evyf = evy * (1.0f / 16.0f);
+
+			mr = (uint32_t)(nr - nr * evyf);
+			mg = (uint32_t)(ng - ng * evyf);
+			mb = (uint32_t)(nb - nb * evyf);
+		}
+		break;
+
+		default: return new_col;
+	}
+
+	return 0xff | (mr << 8) | (mg << 16) | (mb << 24);
+}
+
 static void render_obj(uint8_t prio) {
     if (!(disp_cnt.w & OBJ_ENB)) return;
 
@@ -155,6 +270,10 @@ static void render_bg() {
 
     uint32_t surf_addr = v_count.w * 240 * 4;
 
+	uint8_t eff = (bld_cnt.w >> 6) & 3;
+
+	bool win = disp_cnt.w & 0xe000;
+
     switch (mode) {
         case 0:
         case 1:
@@ -165,8 +284,13 @@ static void render_bg() {
 
             for (prio = 3; prio >= 0; prio--) {
                 for (bg_idx = 3; bg_idx >= 0; bg_idx--) {
-                    if (!(enb & (1 << bg_idx))) continue;
+					int8_t bg_mask = 1 << bg_idx;
+
+                    if (!(enb & bg_mask)) continue;
+
                     if ((bg[bg_idx].ctrl.w & 3) != prio) continue;
+
+					if (win && !win_show_y(bg_idx, v_count.w)) continue;
 
                     uint32_t chr_base  = ((bg[bg_idx].ctrl.w >>  2) & 0x3)  << 14;
                     bool     is_256    =  (bg[bg_idx].ctrl.w >>  7) & 0x1;
@@ -175,6 +299,8 @@ static void render_bg() {
                     uint16_t scrn_size =  (bg[bg_idx].ctrl.w >> 14);
 
                     bool affine = mode == 2 || (mode == 1 && bg_idx == 2);
+
+					bool blend = eff && (bld_cnt.w & bg_mask);
 
                     uint32_t address = surf_addr;
 
@@ -195,11 +321,9 @@ static void render_bg() {
 
                         uint8_t x;
 
-                        for (x = 0; x < 240;
-                            x++,
-                            ox += pa,
-                            oy += pc,
-                            address += 4) {
+                        for (x = 0; x < 240; x++, ox += pa, oy += pc, address += 4) {
+							if (win && !win_show_x(bg_idx, x)) continue;
+
                             int16_t tmx = ox >> 11;
                             int16_t tmy = oy >> 11;
 
@@ -220,7 +344,15 @@ static void render_bg() {
 
                             uint16_t pal_idx = vram[vram_addr];
 
-                            if (pal_idx) *(uint32_t *)(screen + address) = palette[pal_idx];
+                            if (pal_idx) {
+								if (blend) {
+									uint32_t color = get_blended_color(palette[pal_idx], *(uint32_t *)(screen + address));
+
+									*(uint32_t *)(screen + address) = color;
+								} else {
+									*(uint32_t *)(screen + address) = palette[pal_idx];
+								}
+							}
                         }
                     } else {
                         uint16_t oy     = v_count.w + bg[bg_idx].yofs.w;
@@ -230,6 +362,8 @@ static void render_bg() {
                         uint8_t x;
 
                         for (x = 0; x < 240; x++) {
+							if (win && !win_show_x(bg_idx, x)) continue;
+
                             uint16_t ox     = x + bg[bg_idx].xofs.w;
                             uint16_t tmx    = ox >> 3;
                             uint16_t scrn_x = (tmx >> 5) & 1;
@@ -272,7 +406,15 @@ static void render_bg() {
 
                             uint32_t pal_addr = pal_idx | pal_base;
 
-                            if (pal_idx) *(uint32_t *)(screen + address) = palette[pal_addr];
+                            if (pal_idx) {
+								if (blend) {
+									uint32_t color = get_blended_color(palette[pal_addr], *(uint32_t *)(screen + address));
+
+									*(uint32_t *)(screen + address) = color;
+								} else {
+									*(uint32_t *)(screen + address) = palette[pal_addr];
+								}
+							}
 
                             address += 4;
                         }
