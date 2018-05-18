@@ -244,7 +244,14 @@ static void snd_reset_state(uint8_t ch, bool enb) {
 
 void io_write(uint32_t address, uint8_t value) {
     switch (address) {
-        case 0x04000000: disp_cnt.b.b0        =  value; break;
+        case 0x04000000:
+            if (arm_r.r[15] >= 0x4000) {
+                //The CGB mode enable bit 3 can only be set by the bios
+                value &= 0xf7;
+            }
+
+            disp_cnt.b.b0 = value;
+        break;
         case 0x04000001: disp_cnt.b.b1        =  value; break;
         case 0x04000002: green_inv.b.b0       =  value; break;
         case 0x04000003: green_inv.b.b1       =  value; break;
