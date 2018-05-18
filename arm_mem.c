@@ -19,6 +19,8 @@ flash_mode_e flash_mode = IDLE;
 
 bool flash_id_mode = false;
 
+bool flash_used = false;
+
 bool eeprom_used = false;
 bool eeprom_read = false;
 
@@ -127,8 +129,10 @@ static uint8_t flash_read(uint32_t address) {
             case 0x0e000000: return 0x62;
             case 0x0e000001: return 0x13;
         }
-    } else {
+    } else if (flash_used) {
         return flash[flash_bank | (address & 0xffff)];
+    } else {
+        return sram[address & 0xffff];
     }
 
     return 0;
@@ -349,9 +353,13 @@ static void eeprom_write(uint32_t address, uint8_t offset, uint8_t value) {
 
 static void flash_write(uint32_t address, uint8_t value) {
     if (flash_mode == WRITE) {
-        flash[address & 0xffff] = value;
+        flash[flash_bank | (address & 0xffff)] = value;
+
+        flash_mode = IDLE;
     } else if (flash_mode == BANK_SWITCH && address == 0x0e000000) {
         flash_bank = (value & 1) << 16;
+
+        flash_mode = IDLE;
     } else if (sram[0x5555] == 0xaa && sram[0x2aaa] == 0x55) {
         if (address == 0x0e005555) {
             //Command to do something on Flash ROM
@@ -364,6 +372,8 @@ static void flash_write(uint32_t address, uint8_t value) {
                         for (idx = 0; idx < 0x20000; idx++) {
                             flash[idx] = 0xff;
                         }
+
+                        flash_mode = IDLE;
                     }
                 break;
 
@@ -373,20 +383,26 @@ static void flash_write(uint32_t address, uint8_t value) {
                 case 0xb0: flash_mode    = BANK_SWITCH; break;
                 case 0xf0: flash_id_mode = false;       break;
             }
-        } else if (flash_mode == ERASE && (address & 0xfff) == 0) {
+
+            //We try to guess that the game uses flash if it
+            //writes the specific flash commands to the save memory region
+            if (flash_mode || flash_id_mode) {
+                flash_used = true;
+            }
+        } else if (flash_mode == ERASE && value == 0x30) {
             uint32_t bank_s = address & 0xf000;
             uint32_t bank_e = bank_s + 0x1000;
             uint32_t idx;
 
             for (idx = bank_s; idx < bank_e; idx++) {
-                flash[idx] = 0xff;
+                flash[flash_bank | idx] = 0xff;
             }
+
+            flash_mode = IDLE;
         }
     }
 
     sram[address & 0xffff] = value;
-
-    flash_mode = IDLE;
 }
 
 static void arm_write_(uint32_t address, uint8_t offset, uint8_t value) {
