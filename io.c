@@ -238,7 +238,7 @@ static void snd_reset_state(uint8_t ch, bool enb) {
                 snd_ch_state[ch].lfsr = 0x7fff;
         }
 
-        snd_psg_enb.w |=  (1 << ch);
+        snd_psg_enb.w |= (1 << ch);
     }
 }
 

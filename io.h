@@ -33,9 +33,41 @@ typedef union {
 #define WIN1_ENB     (1 << 14)
 #define WINOBJ_ENB   (1 << 15)
 
-#define VBLK_IRQ  (1 <<  3)
-#define HBLK_IRQ  (1 <<  4)
-#define VCNT_IRQ  (1 <<  5)
+#define WINANY_ENB  (WIN0_ENB | WIN1_ENB | WINOBJ_ENB)
+
+#define LAYER_BG0  0
+#define LAYER_BG1  1
+#define LAYER_BG2  2
+#define LAYER_BG3  3
+#define LAYER_OBJ  4
+#define LAYER_EFF  5
+
+#define EFF_NONE        0
+#define EFF_ALPHA_BLD   1
+#define EFF_BRIGHT_INC  2
+#define EFF_BRIGHT_DEC  3
+
+#define WIN_BG0_MSK  (1 << LAYER_BG0)
+#define WIN_BG1_MSK  (1 << LAYER_BG1)
+#define WIN_BG2_MSK  (1 << LAYER_BG2)
+#define WIN_BG3_MSK  (1 << LAYER_BG3)
+#define WIN_OBJ_MSK  (1 << LAYER_OBJ)
+#define WIN_EFF_MSK  (1 << LAYER_EFF)
+
+#define BLD_BG0_MSK  (1 << LAYER_BG0)
+#define BLD_BG1_MSK  (1 << LAYER_BG1)
+#define BLD_BG2_MSK  (1 << LAYER_BG2)
+#define BLD_BG3_MSK  (1 << LAYER_BG3)
+#define BLD_OBJ_MSK  (1 << LAYER_OBJ)
+#define BLD_BD_MSK   (1 << LAYER_EFF)
+
+#define VBLK_IRQ  (1 << 3)
+#define HBLK_IRQ  (1 << 4)
+#define VCNT_IRQ  (1 << 5)
+
+#define OBJ_MODE_NORM  0
+#define OBJ_MODE_BLD   1
+#define OBJ_MODE_WIN   2
 
 io_reg disp_cnt;
 io_reg green_inv;

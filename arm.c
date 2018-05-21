@@ -250,15 +250,15 @@ static bool arm_in_thumb() {
 }
 
 static uint16_t arm_fetchh(access_type_e at) {
-    switch (arm_r.r[15] >> 24) {
-        case 0x0: arm_cycles += 1; return (bios_op = *(uint16_t *)(bios + (arm_r.r[15] & 0x3fff)));
-        case 0x2: arm_cycles += 3; return *(uint16_t *)(wram  + (arm_r.r[15] & 0x3ffff));
-        case 0x3: arm_cycles += 1; return *(uint16_t *)(iwram + (arm_r.r[15] & 0x7fff));
-        case 0x5: arm_cycles += 1; return *(uint16_t *)(pram  + (arm_r.r[15] & 0x3ff));
-        case 0x7: arm_cycles += 1; return *(uint16_t *)(oam   + (arm_r.r[15] & 0x3ff));
+    switch (arm_r.r[15] & 0xf000000) {
+        case 0x0000000: arm_cycles += 1; return (bios_op = *(uint16_t *)(bios + (arm_r.r[15] & 0x3fff)));
+        case 0x2000000: arm_cycles += 3; return *(uint16_t *)(wram  + (arm_r.r[15] & 0x3ffff));
+        case 0x3000000: arm_cycles += 1; return *(uint16_t *)(iwram + (arm_r.r[15] & 0x7fff));
+        case 0x5000000: arm_cycles += 1; return *(uint16_t *)(pram  + (arm_r.r[15] & 0x3ff));
+        case 0x7000000: arm_cycles += 1; return *(uint16_t *)(oam   + (arm_r.r[15] & 0x3ff));
 
-        case 0x8:
-        case 0x9:
+        case 0x8000000:
+        case 0x9000000:
             if (at == NON_SEQ)
                 arm_cycles += ws_n_t16[0];
             else
@@ -266,8 +266,8 @@ static uint16_t arm_fetchh(access_type_e at) {
 
             return *(uint16_t *)(rom + (arm_r.r[15] & 0x1ffffff));
 
-        case 0xa:
-        case 0xb:
+        case 0xa000000:
+        case 0xb000000:
             if (at == NON_SEQ)
                 arm_cycles += ws_n_t16[1];
             else
@@ -275,8 +275,8 @@ static uint16_t arm_fetchh(access_type_e at) {
 
             return *(uint16_t *)(rom + (arm_r.r[15] & 0x1ffffff));
 
-        case 0xc:
-        case 0xd:
+        case 0xc000000:
+        case 0xd000000:
             if (at == NON_SEQ)
                 arm_cycles += ws_n_t16[2];
             else
@@ -293,15 +293,15 @@ static uint16_t arm_fetchh(access_type_e at) {
 }
 
 static uint32_t arm_fetch(access_type_e at) {
-    switch (arm_r.r[15] >> 24) {
-        case 0x0: arm_cycles += 1; return (bios_op = *(uint32_t *)(bios + (arm_r.r[15] & 0x3fff)));
-        case 0x2: arm_cycles += 6; return *(uint32_t *)(wram  + (arm_r.r[15] & 0x3ffff));
-        case 0x3: arm_cycles += 1; return *(uint32_t *)(iwram + (arm_r.r[15] & 0x7fff));
-        case 0x5: arm_cycles += 1; return *(uint32_t *)(pram  + (arm_r.r[15] & 0x3ff));
-        case 0x7: arm_cycles += 1; return *(uint32_t *)(oam   + (arm_r.r[15] & 0x3ff));
+    switch (arm_r.r[15] & 0xf000000) {
+        case 0x0000000: arm_cycles += 1; return (bios_op = *(uint32_t *)(bios + (arm_r.r[15] & 0x3fff)));
+        case 0x2000000: arm_cycles += 6; return *(uint32_t *)(wram  + (arm_r.r[15] & 0x3ffff));
+        case 0x3000000: arm_cycles += 1; return *(uint32_t *)(iwram + (arm_r.r[15] & 0x7fff));
+        case 0x5000000: arm_cycles += 1; return *(uint32_t *)(pram  + (arm_r.r[15] & 0x3ff));
+        case 0x7000000: arm_cycles += 1; return *(uint32_t *)(oam   + (arm_r.r[15] & 0x3ff));
 
-        case 0x8:
-        case 0x9:
+        case 0x8000000:
+        case 0x9000000:
             if (at == NON_SEQ)
                 arm_cycles += ws_n_arm[0];
             else
@@ -309,8 +309,8 @@ static uint32_t arm_fetch(access_type_e at) {
 
             return *(uint32_t *)(rom + (arm_r.r[15] & 0x1ffffff));
 
-        case 0xa:
-        case 0xb:
+        case 0xa000000:
+        case 0xb000000:
             if (at == NON_SEQ)
                 arm_cycles += ws_n_arm[1];
             else
@@ -318,8 +318,8 @@ static uint32_t arm_fetch(access_type_e at) {
 
             return *(uint32_t *)(rom + (arm_r.r[15] & 0x1ffffff));
 
-        case 0xc:
-        case 0xd:
+        case 0xc000000:
+        case 0xd000000:
             if (at == NON_SEQ)
                 arm_cycles += ws_n_arm[2];
             else

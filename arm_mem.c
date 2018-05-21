@@ -135,29 +135,29 @@ static uint8_t flash_read(uint32_t address) {
 }
 
 static uint8_t arm_read_(uint32_t address, uint8_t offset) {
-    switch (address >> 24) {
-        case 0x0: return bios_read(address);
-        case 0x2: return wram_read(address);
-        case 0x3: return iwram_read(address);
-        case 0x4: return io_read(address);
-        case 0x5: return pram_read(address);
-        case 0x6: return vram_read(address);
-        case 0x7: return oam_read(address);
+    switch (address & 0xf000000) {
+        case 0x0000000: return bios_read(address);
+        case 0x2000000: return wram_read(address);
+        case 0x3000000: return iwram_read(address);
+        case 0x4000000: return io_read(address);
+        case 0x5000000: return pram_read(address);
+        case 0x6000000: return vram_read(address);
+        case 0x7000000: return oam_read(address);
 
-        case 0x8:
-        case 0x9:
+        case 0x8000000:
+        case 0x9000000:
             return rom_read(address);
 
-        case 0xa:
-        case 0xb:
+        case 0xa000000:
+        case 0xb000000:
             return rom_read(address);
 
-        case 0xc:
-        case 0xd:
+        case 0xc000000:
+        case 0xd000000:
             return rom_eep_read(address, offset);
 
-        case 0xe:
-        case 0xf:
+        case 0xe000000:
+        case 0xf000000:
             return flash_read(address);
     }
 
@@ -390,20 +390,20 @@ static void flash_write(uint32_t address, uint8_t value) {
 }
 
 static void arm_write_(uint32_t address, uint8_t offset, uint8_t value) {
-    switch (address >> 24) {
-        case 0x2: wram_write(address, value); break;
-        case 0x3: iwram_write(address, value); break;
-        case 0x4: io_write(address, value); break;
-        case 0x5: pram_write(address, value); break;
-        case 0x6: vram_write(address, value); break;
-        case 0x7: oam_write(address, value); break;
+    switch (address & 0xf000000) {
+        case 0x2000000: wram_write(address, value); break;
+        case 0x3000000: iwram_write(address, value); break;
+        case 0x4000000: io_write(address, value); break;
+        case 0x5000000: pram_write(address, value); break;
+        case 0x6000000: vram_write(address, value); break;
+        case 0x7000000: oam_write(address, value); break;
 
-        case 0xc:
-        case 0xd:
+        case 0xc000000:
+        case 0xd000000:
             eeprom_write(address, offset, value); break;
 
-        case 0xe:
-        case 0xf:
+        case 0xe000000:
+        case 0xf000000:
             flash_write(address, value); break;
     }
 }
