@@ -322,10 +322,11 @@ static void render_obj(uint8_t prio) {
 static const uint8_t bg_enb[3] = { 0xf, 0x7, 0xc };
 
 #define ORDER_OBJ_FLG  4
+#define ORDER_END_FLG  8
 
 #define INSERT_ORDER(x)  (*order = (*order << 4) | (x))
 
-static void fill_prio(uint32_t *order, uint8_t prio) {
+static void fill_prio(uint64_t *order, uint8_t prio) {
     int8_t bg_idx;
 
     for (bg_idx = 3; bg_idx >= 0; bg_idx--) {
@@ -365,25 +366,25 @@ static void render_bg() {
         case 2: {
             //This holds the indices of the bgs in order of rendering
             //on each nibble, and 0xf indicates end of list
-            uint32_t order = 0;
+            uint64_t order = ORDER_END_FLG;
 
             fill_prio(&order, 3);
             fill_prio(&order, 2);
             fill_prio(&order, 1);
             fill_prio(&order, 0);
 
-            while (order) {
-                uint32_t curr_order = order;
+            while (!(order & ORDER_END_FLG)) {
+                uint32_t layer = order;
 
                 order >>= 4;
 
-                if (curr_order & ORDER_OBJ_FLG) {
-                    render_obj(curr_order & 3);
+                if (layer & ORDER_OBJ_FLG) {
+                    render_obj(layer & 3);
 
                     continue;
                 }
 
-                uint8_t bg_idx = curr_order & 3;
+                uint8_t bg_idx = layer & 3;
                 uint8_t bg_mask = 1 << bg_idx;
 
                 if (!(enb & bg_mask)) continue;
@@ -580,7 +581,7 @@ static void render_bg() {
                             } else if (eff == EFF_BRIGHT_DEC && (bld_cnt.b.b0 & bg_mask)) {
                                 *(uint32_t *)(screen + address) = get_bright_dec_color(palette[pal_addr]);
                             } else {
-                                *(uint32_t *)(screen + address) = palette[pal_idx];
+                                *(uint32_t *)(screen + address) = palette[pal_addr];
                             }
 
                             px_count++;
