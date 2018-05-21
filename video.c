@@ -144,6 +144,27 @@ static uint32_t get_bright_dec_color(uint64_t color) {
          (MUL_COEFF(color & mask_b, evy) & mask_b)));
 }
 
+#define DRAW_PIXEL(mask) \
+    if (eff == EFF_NONE || !do_eff) { \
+        *surf = color; \
+    } else if (eff == EFF_ALPHA_BLD) { \
+        if (!pixel && (bld_enb_l1 & (mask))) { \
+            layer1[x] = color; \
+        } else if (bld_enb_l2 & (mask)) { \
+            if (!layer2[x]) \
+                 layer2[x] = color; \
+        } else if (!(bld_enb_l1 & (mask))) { \
+            layer1[x] = 0; \
+        } \
+\
+        if (!pixel) *surf = color; \
+    } else if (eff == EFF_BRIGHT_INC && (bld_enb_l1 & (mask))) { \
+        *surf = get_bright_inc_color(color); \
+    } else if (eff == EFF_BRIGHT_DEC && (bld_enb_l1 & (mask))) { \
+        *surf = get_bright_dec_color(color); \
+    } else \
+        *surf = color
+
 static void render_obj(uint8_t prio) {
     if (!(disp_cnt.w & OBJ_ENB)) return;
 
@@ -345,16 +366,25 @@ static void fill_prio(uint64_t *order, uint8_t prio) {
 }
 
 static void render_bg() {
-    uint32_t address;
+    uint32_t line = v_count.w;
+
+    uint8_t *lcl_vram = vram;
+
+    uint32_t *lcl_palette = palette;
+
+    uint8_t bld_enb_l1 = bld_cnt.b.b0;
+    uint8_t bld_enb_l2 = bld_cnt.b.b1;
+
+    uint32_t *surf_base = (uint32_t *)(screen + line * PIXELS_PER_LINE * BYTES_PER_PIXEL);
+    uint32_t *surf;
+
     uint8_t x;
     uint8_t mode = disp_cnt.w & 7;
     uint8_t enb = disp_cnt.b.b1 & bg_enb[mode];
 
-    uint32_t surf_addr = v_count.w * PIXELS_PER_LINE * BYTES_PER_PIXEL;
-
     uint8_t eff = (bld_cnt.w >> 6) & 3;
 
-    win_y_e eff_win_y = win_show_y(LAYER_EFF, v_count.w);
+    win_y_e eff_win_y = win_show_y(LAYER_EFF, line);
 
     bool do_eff = true;
 
@@ -392,20 +422,25 @@ static void render_bg() {
                 win_y_e bg_win_y = 0;
 
                 if (win) {
-                    bg_win_y = win_show_y(bg_idx, v_count.w);
+                    bg_win_y = win_show_y(bg_idx, line);
 
                     if (!bg_win_y) continue;
                 }
 
-                uint32_t chr_base  = ((bg[bg_idx].ctrl.w >>  2) & 0x3)  << 14;
-                bool     is_256    =  (bg[bg_idx].ctrl.w >>  7) & 0x1;
-                uint16_t scrn_base = ((bg[bg_idx].ctrl.w >>  8) & 0x1f) << 11;
-                bool     aff_wrap  =  (bg[bg_idx].ctrl.w >> 13) & 0x1;
-                uint16_t scrn_size =  (bg[bg_idx].ctrl.w >> 14);
+                uint32_t bg_ctrl = bg[bg_idx].ctrl.w;
+
+                uint32_t chr_base  = ((bg_ctrl >>  2) & 0x3)  << 14;
+                bool     is_256    =  (bg_ctrl >>  7) & 0x1;
+                uint16_t scrn_base = ((bg_ctrl >>  8) & 0x1f) << 11;
+                bool     aff_wrap  =  (bg_ctrl >> 13) & 0x1;
+                uint16_t scrn_size =  (bg_ctrl >> 14);
 
                 bool affine = mode == 2 || (mode == 1 && bg_idx == 2);
 
-                address = surf_addr;
+                uint32_t xofs = bg[bg_idx].xofs.w;
+                uint32_t yofs = bg[bg_idx].yofs.w;
+
+                surf = surf_base;
 
                 uint32_t px_count = 0;
 
@@ -424,8 +459,8 @@ static void render_bg() {
                     uint8_t tms = 16 << scrn_size;
                     uint8_t tmsk = tms - 1;
 
-                    for (x = 0; x < PIXELS_PER_LINE; x++, ox += pa, oy += pc, address += BYTES_PER_PIXEL) {
-                        uint32_t pixel = *(uint32_t *)(screen + address);
+                    for (x = 0; x < PIXELS_PER_LINE; x++, ox += pa, oy += pc, surf++) {
+                        uint32_t pixel = *surf;
 
                         if (win) {
                             if (!win_show_x(bg_idx, x, bg_win_y)) continue;
@@ -461,43 +496,27 @@ static void render_bg() {
 
                         uint32_t map_addr = scrn_base + tmy * tms + tmx;
 
-                        uint32_t vram_addr = chr_base + vram[map_addr] * 64 + chr_y * 8 + chr_x;
+                        uint32_t vram_addr = chr_base + lcl_vram[map_addr] * 64 + chr_y * 8 + chr_x;
 
-                        uint8_t pal_idx = vram[vram_addr];
+                        uint8_t pal_idx = lcl_vram[vram_addr];
 
                         if (pal_idx) {
-                            if (eff == EFF_NONE || !do_eff) {
-                                *(uint32_t *)(screen + address) = palette[pal_idx];
-                            } else if (eff == EFF_ALPHA_BLD) {
-                                if (!pixel && (bld_cnt.b.b0 & bg_mask)) {
-                                    if (!layer1[x])
-                                         layer1[x] = palette[pal_idx];
-                                } else if (bld_cnt.b.b1 & bg_mask) {
-                                    if (!layer2[x])
-                                         layer2[x] = palette[pal_idx];
-                                }
+                            uint32_t color = lcl_palette[pal_idx];
 
-                                if (!pixel) *(uint32_t *)(screen + address) = palette[pal_idx];
-                            } else if (eff == EFF_BRIGHT_INC && (bld_cnt.b.b0 & bg_mask)) {
-                                *(uint32_t *)(screen + address) = get_bright_inc_color(palette[pal_idx]);
-                            } else if (eff == EFF_BRIGHT_DEC && (bld_cnt.b.b0 & bg_mask)) {
-                                *(uint32_t *)(screen + address) = get_bright_dec_color(palette[pal_idx]);
-                            } else {
-                                *(uint32_t *)(screen + address) = palette[pal_idx];
-                            }
+                            DRAW_PIXEL(bg_mask);
 
                             px_count++;
                         }
                     }
                 } else {
-                    uint16_t oy = v_count.w + bg[bg_idx].yofs.w;
+                    uint16_t oy = line + yofs;
 
                     uint16_t tmy = oy >> 3;
 
                     uint16_t scrn_y = (tmy >> 5) & 1;
 
-                    for (x = 0; x < PIXELS_PER_LINE; x++, address += BYTES_PER_PIXEL) {
-                        uint32_t pixel = *(uint32_t *)(screen + address);
+                    for (x = 0; x < PIXELS_PER_LINE; x++, surf++) {
+                        uint32_t pixel = *surf;
 
                         if (win) {
                             if (!win_show_x(bg_idx, x, bg_win_y)) continue;
@@ -517,7 +536,7 @@ static void render_bg() {
                             continue;
                         }
 
-                        uint16_t ox = x + bg[bg_idx].xofs.w;
+                        uint16_t ox = x + xofs;
 
                         uint16_t tmx = ox >> 3;
 
@@ -554,35 +573,19 @@ static void render_bg() {
                         if (is_256) {
                             vram_addr = chr_base + chr_numb * 64 + chr_y * 8 + chr_x;
 
-                            pal_idx = vram[vram_addr];
+                            pal_idx = lcl_vram[vram_addr];
                         } else {
                             vram_addr = chr_base + chr_numb * 32 + chr_y * 4 + (chr_x >> 1);
 
-                            pal_idx = (vram[vram_addr] >> (chr_x & 1) * 4) & 0xf;
+                            pal_idx = (lcl_vram[vram_addr] >> (chr_x & 1) * 4) & 0xf;
                         }
 
                         uint32_t pal_addr = pal_base | pal_idx;
 
                         if (pal_idx) {
-                            if (eff == EFF_NONE || !do_eff) {
-                                *(uint32_t *)(screen + address) = palette[pal_addr];
-                            } else if (eff == EFF_ALPHA_BLD) {
-                                if (!pixel && (bld_cnt.b.b0 & bg_mask)) {
-                                    if (!layer1[x])
-                                         layer1[x] = palette[pal_addr];
-                                } else if (bld_cnt.b.b1 & bg_mask) {
-                                    if (!layer2[x])
-                                         layer2[x] = palette[pal_addr];
-                                }
+                            uint32_t color = lcl_palette[pal_addr];
 
-                                if (!pixel) *(uint32_t *)(screen + address) = palette[pal_addr];
-                            } else if (eff == EFF_BRIGHT_INC && (bld_cnt.b.b0 & bg_mask)) {
-                                *(uint32_t *)(screen + address) = get_bright_inc_color(palette[pal_addr]);
-                            } else if (eff == EFF_BRIGHT_DEC && (bld_cnt.b.b0 & bg_mask)) {
-                                *(uint32_t *)(screen + address) = get_bright_dec_color(palette[pal_addr]);
-                            } else {
-                                *(uint32_t *)(screen + address) = palette[pal_addr];
-                            }
+                            DRAW_PIXEL(bg_mask);
 
                             px_count++;
                         }
@@ -597,14 +600,14 @@ static void render_bg() {
         break;
 
         case 3: {
-            address = surf_addr;
+            surf = surf_base;
 
-            uint32_t frm_addr = v_count.w * 480;
+            uint32_t frm_addr = line * 480;
 
-            win_y_e win_y = win_show_y(LAYER_BG2, v_count.w);
+            win_y_e win_y = win_show_y(LAYER_BG2, line);
 
-            for (x = 0; x < PIXELS_PER_LINE; x++, address += 4) {
-                uint32_t pixel = *(uint32_t *)(screen + address);
+            for (x = 0; x < PIXELS_PER_LINE; x++, surf++) {
+                uint32_t pixel = *surf;
 
                 if (pixel) continue;
 
@@ -614,49 +617,34 @@ static void render_bg() {
                     do_eff = win_show_x(LAYER_EFF, x, eff_win_y);
                 }
 
-                uint16_t packed = *(uint16_t *)(vram + frm_addr + x * 2);
+                uint16_t packed = *(uint16_t *)(lcl_vram + frm_addr + x * 2);
 
                 uint8_t r = ((packed >>  0) & 0x1f) << 3;
                 uint8_t g = ((packed >>  5) & 0x1f) << 3;
                 uint8_t b = ((packed >> 10) & 0x1f) << 3;
 
-                uint32_t rgba = 0xff;
+                uint32_t color = 0xff;
 
-                rgba |= (r | (r >> 5)) <<  8;
-                rgba |= (g | (g >> 5)) << 16;
-                rgba |= (b | (b >> 5)) << 24;
+                color |= (r | (r >> 5)) <<  8;
+                color |= (g | (g >> 5)) << 16;
+                color |= (b | (b >> 5)) << 24;
 
-                if (eff == EFF_NONE || !do_eff) {
-                    *(uint32_t *)(screen + address) = rgba;
-                } else if (eff == EFF_ALPHA_BLD) {
-                    if (!pixel && (bld_cnt.b.b0 & BLD_BG2_MSK)) {
-                        if (!layer1[x])
-                             layer1[x] = rgba;
-                    }
-
-                    if (!pixel) *(uint32_t *)(screen + address) = rgba;
-                } else if (eff == EFF_BRIGHT_INC && (bld_cnt.b.b0 & BLD_BG2_MSK)) {
-                    *(uint32_t *)(screen + address) = get_bright_inc_color(rgba);
-                } else if (eff == EFF_BRIGHT_DEC && (bld_cnt.b.b0 & BLD_BG2_MSK)) {
-                    *(uint32_t *)(screen + address) = get_bright_dec_color(rgba);
-                } else {
-                    *(uint32_t *)(screen + address) = rgba;
-                }
+                DRAW_PIXEL(BLD_BG2_MSK);
             }
         }
         break;
 
         case 4: {
-            address = surf_addr;
+            surf = surf_base;
 
             uint8_t frame = (disp_cnt.w >> 4) & 1;
 
-            uint32_t frm_addr = 0xa000 * frame + v_count.w * 240;
+            uint32_t frm_addr = 0xa000 * frame + line * 240;
 
-            win_y_e win_y = win_show_y(LAYER_BG2, v_count.w);
+            win_y_e win_y = win_show_y(LAYER_BG2, line);
 
-            for (x = 0; x < PIXELS_PER_LINE; x++, address += 4) {
-                uint32_t pixel = *(uint32_t *)(screen + address);
+            for (x = 0; x < PIXELS_PER_LINE; x++, surf++) {
+                uint32_t pixel = *surf;
 
                 if (pixel) continue;
 
@@ -666,24 +654,11 @@ static void render_bg() {
                     do_eff = win_show_x(LAYER_EFF, x, eff_win_y);
                 }
 
-                uint8_t pal_idx = vram[frm_addr + x];
+                uint8_t pal_idx = lcl_vram[frm_addr + x];
 
-                if (eff == EFF_NONE || !do_eff) {
-                    *(uint32_t *)(screen + address) = palette[pal_idx];
-                } else if (eff == EFF_ALPHA_BLD) {
-                    if (!pixel && (bld_cnt.b.b0 & BLD_BG2_MSK)) {
-                        if (!layer1[x])
-                             layer1[x] = palette[pal_idx];
-                    }
+                uint32_t color = lcl_palette[pal_idx];
 
-                    if (!pixel) *(uint32_t *)(screen + address) = palette[pal_idx];
-                } else if (eff == EFF_BRIGHT_INC && (bld_cnt.b.b0 & BLD_BG2_MSK)) {
-                    *(uint32_t *)(screen + address) = get_bright_inc_color(palette[pal_idx]);
-                } else if (eff == EFF_BRIGHT_DEC && (bld_cnt.b.b0 & BLD_BG2_MSK)) {
-                    *(uint32_t *)(screen + address) = get_bright_dec_color(palette[pal_idx]);
-                } else {
-                    *(uint32_t *)(screen + address) = palette[pal_idx];
-                }
+                DRAW_PIXEL(BLD_BG2_MSK);
             }
         }
         break;
@@ -691,11 +666,11 @@ static void render_bg() {
 
     //Fill the portions of the screen that are still transparent
     //with the backdrop color
-    address = surf_addr;
+    surf = surf_base;
 
-    uint32_t bd_color = palette[0];
+    uint32_t bd_color = lcl_palette[0];
 
-    if (bld_cnt.b.b0 & BLD_BD_MSK) {
+    if (bld_enb_l1 & BLD_BD_MSK) {
         if (eff == EFF_BRIGHT_INC) {
             bd_color = get_bright_inc_color(bd_color);
         } else if (eff == EFF_BRIGHT_DEC) {
@@ -703,25 +678,25 @@ static void render_bg() {
         }
     }
 
-    for (x = 0; x < PIXELS_PER_LINE; x++, address += 4) {
+    uint32_t eva = MIN((bld_alpha.w >> 0) & 0x1f, 16);
+    uint32_t evb = MIN((bld_alpha.w >> 8) & 0x1f, 16);
+
+    for (x = 0; x < PIXELS_PER_LINE; x++, surf++) {
         if (eff == EFF_ALPHA_BLD) {
             uint64_t col1 = layer1[x];
             uint64_t col2 = layer2[x];
 
-            if (!col1 && (bld_cnt.b.b0 & BLD_BD_MSK)) {
-                 col1 = palette[0];
+            if (!col1 && !*surf && (bld_enb_l1 & BLD_BD_MSK)) {
+                 col1 = lcl_palette[0];
             }
 
-            if (!col2 && (bld_cnt.b.b1 & BLD_BD_MSK)) {
-                 col2 = palette[0];
+            if (!col2 && (bld_enb_l2 & BLD_BD_MSK)) {
+                 col2 = lcl_palette[0];
             }
 
             //Alpha blending only occurs if both color are non-transparent,
             //otherwise it is just rendered as normal
             if (col1 && col2) {
-                uint32_t eva = MIN((bld_alpha.w >> 0) & 0x1f, 16);
-                uint32_t evb = MIN((bld_alpha.w >> 8) & 0x1f, 16);
-
                 uint64_t mix_col =
                     MIN((MUL_COEFF(col1 & mask_r, eva) & mask_r) +
                         (MUL_COEFF(col2 & mask_r, evb) & mask_r), mask_r) |
@@ -730,14 +705,14 @@ static void render_bg() {
                     MIN((MUL_COEFF(col1 & mask_b, eva) & mask_b) +
                         (MUL_COEFF(col2 & mask_b, evb) & mask_b), mask_b) | 0xff;
 
-                *(uint32_t *)(screen + address) = (uint32_t)mix_col;
+                *surf = (uint32_t)mix_col;
 
                 continue;
             }
         }
 
-        if (!*(uint32_t *)(screen + address))
-             *(uint32_t *)(screen + address) = bd_color;
+        if (!*surf)
+             *surf = bd_color;
     }
 }
 
