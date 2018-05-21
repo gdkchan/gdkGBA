@@ -614,7 +614,7 @@ static void render_bg() {
                     do_eff = win_show_x(LAYER_EFF, x, eff_win_y);
                 }
 
-                uint16_t packed = *(uint16_t *)(vram + frm_addr * 2);
+                uint16_t packed = *(uint16_t *)(vram + frm_addr + x * 2);
 
                 uint8_t r = ((packed >>  0) & 0x1f) << 3;
                 uint8_t g = ((packed >>  5) & 0x1f) << 3;
